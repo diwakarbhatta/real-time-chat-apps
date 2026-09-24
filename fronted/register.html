@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create account — Pulse Chat</title>
+    <link rel="stylesheet" href="/css/design-system.css" />
+  </head>
+  <body class="auth-shell">
+    <div class="grid" style="width: min(100%, 1200px)">
+      <div class="col-start-4">
+        <a class="brand" href="/index.html" style="margin-bottom: 24px">
+          <span class="brand__mark" aria-hidden="true"></span>
+          Pulse Chat
+        </a>
+        <div class="card">
+          <p class="caption">New account</p>
+          <h1>Create your Pulse profile</h1>
+          <p>Name, email, and password are stored locally for this lab demo.</p>
+          <div id="alert" class="alert alert--error" hidden></div>
+          <form id="register-form" novalidate>
+            <div class="field">
+              <label for="name">Full name</label>
+              <input id="name" name="name" type="text" autocomplete="name" placeholder="Diwakar" required />
+              <span class="field__error">Name is required.</span>
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="you@college.edu" required />
+              <span class="field__error">Enter a valid email.</span>
+            </div>
+            <div class="field">
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" autocomplete="new-password" placeholder="At least 6 characters" required />
+              <span class="field__error">Use at least 6 characters.</span>
+            </div>
+            <button class="btn btn--primary btn--block" type="submit">Create account</button>
+          </form>
+          <p class="caption" style="margin-top: 20px">
+            Already registered? <a href="/login.html">Log in</a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <script src="/js/auth.js"></script>
+    <script>
+      document.getElementById("register-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const name = document.getElementById("name");
+        const email = document.getElementById("email");
+        const password = document.getElementById("password");
+        const alertBox = document.getElementById("alert");
+        let valid = true;
+
+        [name, email, password].forEach((input) => setFieldError(input, ""));
+        alertBox.hidden = true;
+
+        if (!name.value.trim()) {
+          setFieldError(name, "Name is required.");
+          valid = false;
+        }
+        if (!email.value.trim() || !email.value.includes("@")) {
+          setFieldError(email, "Enter a valid email.");
+          valid = false;
+        }
+        if (password.value.length < 6) {
+          setFieldError(password, "Use at least 6 characters.");
+          valid = false;
+        }
+        if (!valid) return;
+
+        const users = getUsers();
+        if (users.some((item) => item.email.toLowerCase() === email.value.trim().toLowerCase())) {
+          showAlert(alertBox, "That email is already registered. Try logging in.", "error");
+          return;
+        }
+
+        const user = {
+          name: name.value.trim(),
+          email: email.value.trim().toLowerCase(),
+          password: password.value,
+          status: "Online",
+        };
+        users.push(user);
+        saveUsers(users);
+        setSession({ name: user.name, email: user.email, status: user.status });
+        window.location.href = "/chat.html";
+      });
+    </script>
+  </body>
+</html>
