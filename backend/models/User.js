@@ -51,11 +51,6 @@ class User {
     return stmt.get(identifier, identifier) || null;
   }
 
-  static updateStatus(id, status) {
-    const stmt = db.prepare('UPDATE users SET status = ? WHERE id = ?');
-    stmt.run(status, id);
-  }
-
   static getAll() {
     const stmt = db.prepare('SELECT id, username, email, status, created_at FROM users ORDER BY username ASC');
     return stmt.all();

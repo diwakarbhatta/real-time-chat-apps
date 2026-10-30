@@ -7,11 +7,13 @@ Pulse Chat is a real-time messaging application designed with a mini design syst
 ## 🚀 Features
 
 - **Real-Time Messaging**: Built on **Socket.IO** for instant communication with zero perceptible latency.
+- **Private 1-to-1 Direct Messaging**: Private conversations with peer-to-peer delivery and scoped history.
 - **Persistent Storage**: All chat messages and registered accounts are saved to an embedded **SQLite** database (`node:sqlite`).
 - **Authentication & Security**:
   - Secure password hashing using **bcryptjs** (10 salt rounds).
   - Stateless authentication tokens via **JSON Web Tokens (JWT)**.
   - Protected API routes and socket authentication handshake.
+  - Configurable CORS policy for secure production deployment.
 - **Active Member Presence**: Real-time user list showing who is online and active in the room.
 - **Typing Indicators**: Displays when members are actively drafting messages.
 - **Design System**: Responsive 12-column desktop and 4-column mobile layout built on semantic tokens (colors, typography, cards, buttons, avatars).
@@ -28,22 +30,22 @@ real-time-chat-apps/
 │   │   └── jwt.js            # JWT signing, verification, and requireAuth middleware
 │   ├── models/
 │   │   ├── User.js           # User model (registration, lookup, verification)
-│   │   └── Message.js        # Message model (creation, recent history)
+│   │   └── Message.js        # Message model (creation, recent & direct history)
 │   ├── routes/
 │   │   ├── auth.js           # /api/auth/register, /api/auth/login, /api/auth/me
-│   │   └── messages.js       # /api/messages (history retrieval)
+│   │   └── messages.js       # /api/messages (history & direct message retrieval)
 │   ├── socket/
-│   │   └── index.js          # Socket.IO connection, join, chat-message, typing, disconnect
+│   │   └── index.js          # Socket.IO connection, room isolation, direct-message, typing, disconnect
 │   └── server.js             # Express app & HTTP server entry point
-├── fronted/
+├── frontend/
 │   ├── css/
 │   │   └── design-system.css # Mini design system styles (12-col/4-col grid, typography, components)
 │   ├── js/
 │   │   └── auth.js           # Client-side auth helpers, session management & API bindings
 │   ├── index.html            # Landing welcome page
-│   ├── login.html            # Account login page
-│   ├── register.html         # User registration page
-│   ├── chat.html             # Real-time chat workspace interface
+│   ├── login.html            # Account login page (with password show/hide toggle)
+│   ├── register.html         # User registration page (with password show/hide toggle)
+│   ├── chat.html             # Real-time chat workspace interface (room & DMs)
 │   └── design-system.html    # Design system component showcase
 ├── .env.example              # Environment variables template
 ├── package.json              # NPM dependencies & scripts
@@ -64,7 +66,12 @@ Copy `.env.example` to `.env` and configure your secret:
 ```bash
 cp .env.example .env
 ```
-Ensure `JWT_SECRET` is set to a unique, secure secret key in your `.env` file (e.g., generated with `openssl rand -hex 32`). Defaults to port `5000`.
+Ensure `JWT_SECRET` is set to a unique, secure secret key in your `.env` file (e.g., generated with `openssl rand -hex 32`, minimum 32 characters). Defaults to port `5000`.
+
+To restrict API and WebSocket access in production, set `CORS_ORIGIN` to your domain:
+```bash
+CORS_ORIGIN=https://yourchatdomain.com
+```
 
 ### 3. Start the Server
 ```bash
@@ -86,7 +93,7 @@ Visit the app in your browser:
 
 ## 🧪 Running Tests
 
-The test suite exercises static asset serving, auth registration/login, duplicate prevention, JWT protection, Socket.IO real-time message broadcasting, and SQLite database persistence:
+The test suite exercises static asset serving, auth registration/login, race conditions & duplicate prevention, JWT protection, Socket.IO real-time message broadcasting, 1-to-1 direct messaging, and SQLite database persistence:
 
 ```bash
 npm test
@@ -103,10 +110,12 @@ npm test
 - `GET /api/auth/users` — List workspace members
 
 ### Messages
-- `GET /api/messages` — Fetch recent message history (Header: `Authorization: Bearer <token>`)
+- `GET /api/messages` — Fetch recent public room message history (Header: `Authorization: Bearer <token>`)
+- `GET /api/messages?peer=<id>` — Fetch private 1-to-1 conversation history with peer
 
 ### WebSocket Events
-- `join` (`{ username, token, status }`) — Joins chat room, triggers history send
-- `chat-message` (`text`) — Sends message, persists to SQLite, broadcasts to room
+- `join` (`{ token, status }`) — Joins chat room, triggers history send
+- `chat-message` (`text`) — Sends message to workspace room, persists to SQLite
+- `direct-message` (`{ to: userId, text }`) — Sends private 1-to-1 message to specific user
 - `typing` (`boolean`) — Emits typing status
 - `users` — Emitted to all clients with active online members

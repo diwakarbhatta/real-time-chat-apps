@@ -69,6 +69,34 @@ async function runTests() {
     }
     console.log('✓ Duplicate registration correctly rejected with 409');
 
+    // 3b. Test Concurrent Registration Race Condition
+    const raceUsername = `race_${Date.now()}`;
+    const [raceA, raceB] = await Promise.all([
+      fetch(`${baseUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: raceUsername,
+          email: `${raceUsername}_a@example.com`,
+          password: testPassword,
+        }),
+      }),
+      fetch(`${baseUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: raceUsername,
+          email: `${raceUsername}_b@example.com`,
+          password: testPassword,
+        }),
+      }),
+    ]);
+    const raceStatuses = [raceA.status, raceB.status].sort();
+    if (raceStatuses[0] !== 201 || raceStatuses[1] !== 409) {
+      throw new Error(`Expected concurrent registrations to yield [201, 409], got [${raceStatuses.join(', ')}]`);
+    }
+    console.log('✓ Concurrent registration race condition handled cleanly with 409');
+
     // 4. Test Login
     const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
@@ -157,6 +185,29 @@ async function runTests() {
         }
       });
     });
+
+    // 6b. Test overlong message rejection (MAX_MESSAGE_LENGTH = 2000)
+    const overlongSocket = ioClient(baseUrl, {
+      auth: { token: loginData.token },
+    });
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Overlong message test timed out')), 5000);
+      overlongSocket.on('connect', () => {
+        overlongSocket.emit('join', { token: loginData.token, status: 'Online' });
+      });
+      overlongSocket.on('users', () => {
+        overlongSocket.emit('chat-message', 'A'.repeat(2001), (ack) => {
+          clearTimeout(timeout);
+          overlongSocket.disconnect();
+          if (ack && ack.success === false && /exceeds/i.test(ack.error)) {
+            resolve();
+          } else {
+            reject(new Error(`Expected overlong message rejection, got: ${JSON.stringify(ack)}`));
+          }
+        });
+      });
+    });
+    console.log('✓ Message exceeding 2000 chars correctly rejected by server');
 
     // 7. Verify Message Persistence in SQLite
     console.log('\n[4] Testing Database Persistence...');

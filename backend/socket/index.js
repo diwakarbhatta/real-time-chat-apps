@@ -3,6 +3,7 @@ const User = require('../models/User');
 const { verifyToken } = require('../config/jwt');
 
 const WORKSPACE_ROOM = 'authenticated-workspace';
+const MAX_MESSAGE_LENGTH = 2000;
 
 function setupSocket(io) {
   const activeUsers = new Map(); // socket.id -> { socketId, userId, username, status, exp }
@@ -158,14 +159,19 @@ function setupSocket(io) {
         return;
       }
 
-      const sanitizedText = text.slice(0, 2000);
+      if (text.length > MAX_MESSAGE_LENGTH) {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: `Message exceeds maximum allowed length of ${MAX_MESSAGE_LENGTH} characters` });
+        }
+        return;
+      }
 
       try {
         // Persist message to SQLite
         const saved = Message.create({
           userId: user.userId,
           username: user.username,
-          text: sanitizedText,
+          text,
         });
 
         const msgPayload = {
@@ -228,6 +234,13 @@ function setupSocket(io) {
         return;
       }
 
+      if (text.length > MAX_MESSAGE_LENGTH) {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: `Message exceeds maximum allowed length of ${MAX_MESSAGE_LENGTH} characters` });
+        }
+        return;
+      }
+
       if (!user.userId) {
         if (typeof callback === 'function') callback({ success: false, error: 'Direct messaging unavailable for this session' });
         return;
@@ -249,14 +262,12 @@ function setupSocket(io) {
         return;
       }
 
-      const sanitizedText = text.slice(0, 2000);
-
       try {
         // Persist the direct message
         const saved = Message.create({
           userId: user.userId,
           username: user.username,
-          text: sanitizedText,
+          text,
           recipientId: toId,
         });
 

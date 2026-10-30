@@ -12,23 +12,33 @@ const authRoutes = require('./routes/auth');
 const messageRoutes = require('./routes/messages');
 const { setupSocket } = require('./socket/index');
 
+// Configurable CORS origin: specify frontend domain via CORS_ORIGIN in production
+// (comma-separated for multiple origins). Defaults to '*' for local development.
+const corsOriginEnv = process.env.CORS_ORIGIN;
+const allowedOrigins = corsOriginEnv
+  ? (corsOriginEnv.includes(',') ? corsOriginEnv.split(',').map((o) => o.trim()) : corsOriginEnv.trim())
+  : '*';
+
+const corsOptions = {
+  origin: allowedOrigins,
+  methods: ['GET', 'POST'],
+  credentials: true,
+};
+
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
+  cors: corsOptions,
 });
 
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve frontend static files
-const frontendPath = path.join(__dirname, '../fronted');
+const frontendPath = path.join(__dirname, '../frontend');
 app.use(express.static(frontendPath));
 
 // API routes

@@ -67,6 +67,16 @@ router.post('/register', async (req, res) => {
       },
     });
   } catch (err) {
+    const errMsg = err && err.message ? err.message : '';
+    if (errMsg.includes('UNIQUE constraint failed') || err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      if (errMsg.includes('users.username') || errMsg.includes('username')) {
+        return res.status(409).json({ error: 'Username is already taken' });
+      }
+      if (errMsg.includes('users.email') || errMsg.includes('email')) {
+        return res.status(409).json({ error: 'Email is already registered. Please log in.' });
+      }
+      return res.status(409).json({ error: 'Username or email is already taken' });
+    }
     console.error('Register error:', err);
     res.status(500).json({ error: 'Could not create account, please try again.' });
   }
