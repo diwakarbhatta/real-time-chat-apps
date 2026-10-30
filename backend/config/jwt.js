@@ -6,6 +6,9 @@ if (!rawSecret || typeof rawSecret !== 'string' || !rawSecret.trim()) {
 }
 
 const JWT_SECRET = rawSecret.trim();
+if (JWT_SECRET === 'your-secure-random-jwt-secret-here' || JWT_SECRET.length < 32) {
+  throw new Error('Fatal: JWT_SECRET must be a unique, secure secret of at least 32 characters (cannot use example placeholders).');
+}
 const JWT_EXPIRES_IN = '7d';
 
 function signToken(user) {
