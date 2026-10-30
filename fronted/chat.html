@@ -127,8 +127,9 @@
         <main class="thread">
           <div class="thread__head">
             <div>
-              <h2 style="font-size: 1.125rem; margin: 0 0 2px;"># general-chat</h2>
-              <p class="caption" style="margin: 0;">Real-time room powered by WebSockets and SQLite</p>
+              <button id="back-btn" class="btn btn--secondary" type="button" hidden style="height: 30px; padding: 0 10px; margin-right: 8px; font-size: 0.75rem;">&larr; Back to room</button>
+              <h2 id="thread-title" style="font-size: 1.125rem; margin: 0 0 2px; display: inline;"># general-chat</h2>
+              <p class="caption" id="thread-subtitle" style="margin: 0;">Real-time room powered by WebSockets and SQLite</p>
             </div>
             <div>
               <span class="caption" id="room-active-summary">Room: Active</span>
@@ -181,6 +182,10 @@
 
       const currentUsername = session.username || session.name || "Guest";
       const currentEmail = session.email || "";
+      const myUserId = session.id || null;
+
+      // Current conversation: { type: "room" } or { type: "dm", userId, username }
+      let conversation = { type: "room" };
 
       // Update header profile display
       const myAvatarEl = document.getElementById("my-avatar");
@@ -190,7 +195,7 @@
       const userListEl = document.getElementById("user-list");
       const userCountBadge = document.getElementById("user-count-badge");
       const messagesContainer = document.getElementById("messages-container");
-      const emptyStateEl = document.getElementById("empty-state");
+      let emptyStateEl = document.getElementById("empty-state");
       const typingBox = document.getElementById("typing-box");
       const messageForm = document.getElementById("message-form");
       const messageInput = document.getElementById("message-input");
@@ -248,6 +253,7 @@
         if (emptyStateEl) emptyStateEl.style.display = "none";
 
         const isMine =
+          (myUserId && msg.userId && msg.userId === myUserId) ||
           (msg.username && msg.username.toLowerCase() === currentUsername.toLowerCase()) ||
           (msg.from && msg.from === socket.id);
 
@@ -278,6 +284,94 @@
         scrollToBottom();
       }
 
+      // --- Conversation switching: general room vs direct messages ---
+      const threadTitle = document.getElementById("thread-title");
+      const threadSubtitle = document.getElementById("thread-subtitle");
+      const backBtn = document.getElementById("back-btn");
+
+      function renderHistory(messages, emptyTitle, emptySubtitle) {
+        displayedMessageIds.clear();
+        messagesContainer.innerHTML = "";
+
+        const empty = document.createElement("div");
+        empty.id = "empty-state";
+        empty.className = "empty-state";
+        const emptyH3 = document.createElement("h3");
+        emptyH3.textContent = emptyTitle;
+        const emptyP = document.createElement("p");
+        emptyP.textContent = emptySubtitle;
+        empty.appendChild(emptyH3);
+        empty.appendChild(emptyP);
+        messagesContainer.appendChild(empty);
+        emptyStateEl = empty;
+
+        messages.forEach((msg) => appendChatMessage(msg));
+        scrollToBottom();
+      }
+
+      async function apiGetMessages(query) {
+        const res = await fetch(`/api/messages${query || ""}`, {
+          headers: { Authorization: `Bearer ${session.token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not load messages");
+        return data;
+      }
+
+      async function loadRoomConversation() {
+        conversation = { type: "room" };
+        threadTitle.textContent = "# general-chat";
+        threadSubtitle.textContent = "Real-time room powered by WebSockets and SQLite";
+        backBtn.hidden = true;
+        renderHistory(
+          [],
+          "Welcome to Pulse Chat!",
+          "Say hello to everyone in the room to kick off the conversation."
+        );
+        try {
+          const data = await apiGetMessages("");
+          renderHistory(
+            data.messages || [],
+            "Welcome to Pulse Chat!",
+            "Say hello to everyone in the room to kick off the conversation."
+          );
+        } catch (err) {
+          appendSystemMessage(`Could not load room history: ${err.message}`);
+        }
+      }
+
+      async function openDM(userId, username) {
+        if (!userId) {
+          appendSystemMessage("Direct messaging unavailable for this member.");
+          return;
+        }
+        if (conversation.type === "dm" && conversation.userId === userId) return;
+
+        conversation = { type: "dm", userId, username };
+        threadTitle.textContent = `@ ${username}`;
+        threadSubtitle.textContent = `Private conversation with ${username} — only you two can see these messages`;
+        backBtn.hidden = false;
+        renderHistory(
+          [],
+          "No messages yet",
+          `This is the beginning of your private conversation with ${username}.`
+        );
+        try {
+          const data = await apiGetMessages(`?peer=${userId}`);
+          renderHistory(
+            data.messages || [],
+            "No messages yet",
+            `This is the beginning of your private conversation with ${username}.`
+          );
+        } catch (err) {
+          appendSystemMessage(`Could not load conversation: ${err.message}`);
+        }
+      }
+
+      backBtn.addEventListener("click", () => {
+        loadRoomConversation();
+      });
+
       // Socket lifecycle events
       socket.on("connect", () => {
         statusBadge.className = "badge";
@@ -306,19 +400,35 @@
         logout();
       });
 
-      // Receive full chat history upon joining
+      // Receive full chat history upon joining (general room)
       socket.on("history", (history = []) => {
-        if (history.length > 0 && emptyStateEl) {
-          emptyStateEl.style.display = "none";
-        }
-        history.forEach((msg) => {
-          appendChatMessage(msg);
-        });
+        if (conversation.type !== "room") return;
+        renderHistory(
+          history,
+          "Welcome to Pulse Chat!",
+          "Say hello to everyone in the room to kick off the conversation."
+        );
       });
 
       // Receive incoming chat messages
       socket.on("chat-message", (msg) => {
+        if (conversation.type !== "room") return;
         appendChatMessage(msg);
+      });
+
+      // Receive incoming private messages
+      socket.on("direct-message", (msg) => {
+        const inThisConversation =
+          conversation.type === "dm" &&
+          (msg.userId === conversation.userId || msg.recipientId === conversation.userId);
+        if (inThisConversation) {
+          appendChatMessage(msg);
+        } else if (msg.userId !== myUserId) {
+          // Arrived while viewing another conversation — surface a notice
+          appendSystemMessage(
+            `${msg.username} sent you a private message — click their name in the member list to reply.`
+          );
+        }
       });
 
       // Receive system messages (e.g. user joined / left)
@@ -362,6 +472,13 @@
           li.appendChild(avatar);
           li.appendChild(info);
 
+          // Clicking a member opens a private 1-to-1 conversation
+          if (!isCurrentUser && u.userId) {
+            li.style.cursor = "pointer";
+            li.title = `Message ${u.username} privately`;
+            li.addEventListener("click", () => openDM(u.userId, u.username));
+          }
+
           userListEl.appendChild(li);
         });
       });
@@ -369,7 +486,13 @@
       // Typing indicator handling
       let typingTimeout = null;
       socket.on("typing", ({ username, isTyping }) => {
-        if (!isTyping || username.toLowerCase() === currentUsername.toLowerCase()) {
+        const isSelf = username.toLowerCase() === currentUsername.toLowerCase();
+        // In a DM view, only show typing from the person you're chatting with
+        const relevant =
+          conversation.type === "room" ||
+          (conversation.type === "dm" &&
+            username.toLowerCase() === conversation.username.toLowerCase());
+        if (!isTyping || isSelf || !relevant) {
           typingBox.hidden = true;
           typingBox.textContent = "";
         } else {
@@ -412,15 +535,28 @@
         clearTimeout(emitStopTypingTimer);
         socket.emit("typing", false);
 
-        socket.emit("chat-message", text, (ack) => {
-          if (sendBtn) sendBtn.disabled = false;
-          if (ack && ack.success) {
-            messageInput.value = "";
-            messageInput.focus();
-          } else {
-            alert((ack && ack.error) || "Failed to deliver message. Your draft has been kept so you can retry.");
-          }
-        });
+        if (conversation.type === "dm") {
+          // Private message to the user currently being viewed
+          socket.emit("direct-message", { to: conversation.userId, text }, (ack) => {
+            if (sendBtn) sendBtn.disabled = false;
+            if (ack && ack.success) {
+              messageInput.value = "";
+              messageInput.focus();
+            } else {
+              alert((ack && ack.error) || "Failed to deliver message. Your draft has been kept so you can retry.");
+            }
+          });
+        } else {
+          socket.emit("chat-message", text, (ack) => {
+            if (sendBtn) sendBtn.disabled = false;
+            if (ack && ack.success) {
+              messageInput.value = "";
+              messageInput.focus();
+            } else {
+              alert((ack && ack.error) || "Failed to deliver message. Your draft has been kept so you can retry.");
+            }
+          });
+        }
       });
     </script>
   </body>

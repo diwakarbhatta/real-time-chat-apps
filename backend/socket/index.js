@@ -104,6 +104,11 @@ function setupSocket(io) {
       // Admit successfully authenticated socket to the workspace broadcast room
       socket.join(WORKSPACE_ROOM);
 
+      // Give every user a personal room so others can send them direct messages
+      if (userId) {
+        socket.join(`user:${userId}`);
+      }
+
       // Send chat history (up to 50 recent messages) to the newly connected user
       try {
         const history = Message.getRecent(50);
@@ -179,6 +184,100 @@ function setupSocket(io) {
         }
       } catch (err) {
         console.error('Failed to save message:', err);
+        socket.emit('message-error', { error: 'Failed to send message. Please try again.' });
+        if (typeof callback === 'function') {
+          callback({ success: false, error: 'Database save failed' });
+        }
+      }
+    });
+
+    // Private 1-to-1 message: { to: <userId>, text: "..." }
+    socket.on('direct-message', (data, callback) => {
+      const user = activeUsers.get(socket.id);
+      if (!user) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Unauthenticated' });
+        return;
+      }
+
+      // Verify token has not expired
+      if (user.exp && Date.now() >= user.exp * 1000) {
+        activeUsers.delete(socket.id);
+        socket.leave(WORKSPACE_ROOM);
+        io.to(WORKSPACE_ROOM).emit('users', getUniqueOnlineUsers());
+        socket.emit('auth-error', { error: 'Session expired. Please log in again.' });
+        socket.disconnect(true);
+        if (typeof callback === 'function') callback({ success: false, error: 'Session expired' });
+        return;
+      }
+
+      if (!data || typeof data !== 'object') {
+        if (typeof callback === 'function') callback({ success: false, error: 'Invalid payload' });
+        return;
+      }
+
+      const toId = Number(data.to);
+      const rawText = data.text;
+      if (!rawText || typeof rawText !== 'string') {
+        if (typeof callback === 'function') callback({ success: false, error: 'Invalid text' });
+        return;
+      }
+
+      const text = rawText.trim();
+      if (!text) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Empty message' });
+        return;
+      }
+
+      if (!user.userId) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Direct messaging unavailable for this session' });
+        return;
+      }
+
+      if (!Number.isInteger(toId) || toId <= 0) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Invalid recipient' });
+        return;
+      }
+
+      if (toId === user.userId) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Cannot send a direct message to yourself' });
+        return;
+      }
+
+      const recipient = User.findById(toId);
+      if (!recipient) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Recipient not found' });
+        return;
+      }
+
+      const sanitizedText = text.slice(0, 2000);
+
+      try {
+        // Persist the direct message
+        const saved = Message.create({
+          userId: user.userId,
+          username: user.username,
+          text: sanitizedText,
+          recipientId: toId,
+        });
+
+        const msgPayload = {
+          id: saved.id,
+          userId: user.userId,
+          username: user.username,
+          recipientId: toId,
+          text: saved.text,
+          time: saved.created_at || new Date().toISOString(),
+          from: socket.id,
+        };
+
+        // Deliver to every socket belonging to the recipient and the sender
+        io.to(`user:${toId}`).to(`user:${user.userId}`).emit('direct-message', msgPayload);
+
+        if (typeof callback === 'function') {
+          callback({ success: true, id: saved.id });
+        }
+      } catch (err) {
+        console.error('Failed to save direct message:', err);
         socket.emit('message-error', { error: 'Failed to send message. Please try again.' });
         if (typeof callback === 'function') {
           callback({ success: false, error: 'Database save failed' });

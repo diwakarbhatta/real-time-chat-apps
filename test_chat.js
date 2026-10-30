@@ -14,6 +14,9 @@ async function runTests() {
 
   const baseUrl = `http://localhost:${TEST_PORT}`;
 
+  // Socket handles hoisted so the finally block can clean them up
+  let unauthSocket, clientSocket, dmSocket, userASocket;
+
   try {
     // 1. Test Static files
     console.log('\n[1] Testing Static Asset Serving...');
@@ -95,7 +98,7 @@ async function runTests() {
     console.log('\n[3] Testing Real-Time WebSockets...');
 
     // Verify unauthenticated and null join is rejected
-    const unauthSocket = ioClient(baseUrl);
+    unauthSocket = ioClient(baseUrl);
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Unauth test timed out')), 4000);
       let nullTested = false;
@@ -115,7 +118,7 @@ async function runTests() {
       });
     });
 
-    const clientSocket = ioClient(baseUrl, {
+    clientSocket = ioClient(baseUrl, {
       auth: { token: loginData.token },
     });
 
@@ -167,11 +170,173 @@ async function runTests() {
     }
     console.log('✓ Message verified in SQLite persistent storage');
 
+    // 8. Test Private 1-to-1 Direct Messages
+    console.log('\n[5] Testing Private Direct Messages...');
+
+    // Register a second user
+    const dmUsername = `dmuser_${Date.now()}`;
+    const dmRegRes = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: dmUsername,
+        email: `${dmUsername}@example.com`,
+        password: testPassword,
+      }),
+    });
+    const dmRegData = await dmRegRes.json();
+    if (dmRegRes.status !== 201 || !dmRegData.token) {
+      throw new Error(`Second user registration failed: ${JSON.stringify(dmRegData)}`);
+    }
+    console.log(`✓ Second user registered: ${dmRegData.user.username}`);
+
+    dmSocket = ioClient(baseUrl, {
+      auth: { token: dmRegData.token },
+    });
+
+    const dmUser = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('DM socket join timed out')), 5000);
+      dmSocket.on('connect', () => {
+        dmSocket.emit('join', { token: dmRegData.token, status: 'Online' });
+      });
+      dmSocket.on('users', (users) => {
+        const found = users.some((u) => u.username === dmUsername);
+        if (found) {
+          clearTimeout(timeout);
+          resolve(users.find((u) => u.username === dmUsername));
+        }
+      });
+    });
+    console.log(`✓ Second user joined workspace (userId: ${dmUser.userId})`);
+
+    // DMs must not be sent to yourself
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Self-DM rejection test timed out')), 4000);
+      dmSocket.emit('direct-message', { to: dmUser.userId, text: 'talking to myself' }, (ack) => {
+        clearTimeout(timeout);
+        if (ack && ack.success === false && /yourself/i.test(ack.error)) {
+          resolve();
+        } else {
+          reject(new Error(`Expected self-DM rejection, got: ${JSON.stringify(ack)}`));
+        }
+      });
+    });
+    console.log('✓ Self-directed DM correctly rejected');
+
+    // DMs to unknown users must be rejected
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Unknown recipient test timed out')), 4000);
+      dmSocket.emit('direct-message', { to: 999999, text: 'hello?' }, (ack) => {
+        clearTimeout(timeout);
+        if (ack && ack.success === false && /Recipient not found/i.test(ack.error)) {
+          resolve();
+        } else {
+          reject(new Error(`Expected recipient-not-found error, got: ${JSON.stringify(ack)}`));
+        }
+      });
+    });
+    console.log('✓ DM to unknown recipient correctly rejected');
+
+    // Unauthenticated sockets cannot send DMs
+    let unauthSocket2;
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Unauth DM test timed out')), 4000);
+      unauthSocket2 = ioClient(baseUrl);
+      unauthSocket2.on('connect', () => {
+        unauthSocket2.emit('direct-message', { to: 1, text: 'sneaky' }, (ack) => {
+          clearTimeout(timeout);
+          if (ack && ack.success === false) {
+            resolve();
+          } else {
+            reject(new Error(`Expected unauthenticated DM rejection, got: ${JSON.stringify(ack)}`));
+          }
+        });
+      });
+    });
+    unauthSocket2.disconnect();
+    console.log('✓ Unauthenticated DM correctly rejected');
+
+    // Reconnect user A (the earlier socket was disconnected after the room test)
+    userASocket = ioClient(baseUrl, {
+      auth: { token: loginData.token },
+    });
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('User A reconnect timed out')), 5000);
+      userASocket.on('connect', () => {
+        userASocket.emit('join', { token: loginData.token, status: 'Online' });
+      });
+      userASocket.on('users', (users) => {
+        if (users.some((u) => u.username === testUsername)) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+    });
+
+    // Send a real DM from user A to user B (dmSocket's user)
+    const dmText = `Psst, this is a secret DM at ${Date.now()}`;
+    const dmReceived = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('DM delivery timed out')), 5000);
+      dmSocket.on('direct-message', (msg) => {
+        if (msg.text === dmText) {
+          clearTimeout(timeout);
+          resolve(msg);
+        }
+      });
+    });
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('DM send acknowledgement timed out')), 5000);
+      userASocket.emit('direct-message', { to: dmUser.userId, text: dmText }, (ack) => {
+        clearTimeout(timeout);
+        if (!ack || !ack.success) {
+          reject(new Error(`DM send failed: ${JSON.stringify(ack)}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+    const deliveredMsg = await dmReceived;
+    if (deliveredMsg.username !== testUsername) {
+      throw new Error(`DM sender identity wrong: ${JSON.stringify(deliveredMsg)}`);
+    }
+    console.log('✓ Direct message delivered privately to recipient');
+
+    // DM history must be retrievable via REST, and excluded from room history
+    const dmHistoryRes = await fetch(`${baseUrl}/api/messages?peer=${dmUser.userId}`, {
+      headers: { Authorization: `Bearer ${loginData.token}` },
+    });
+    const dmHistory = await dmHistoryRes.json();
+    const inDmHistory = (dmHistory.messages || []).some((m) => m.text === dmText);
+    if (dmHistoryRes.status !== 200 || !inDmHistory) {
+      throw new Error(`DM not found in private history: ${JSON.stringify(dmHistory)}`);
+    }
+    console.log('✓ Private conversation history retrievable via GET /api/messages?peer=');
+
+    const roomHistoryRes = await fetch(`${baseUrl}/api/messages`, {
+      headers: { Authorization: `Bearer ${loginData.token}` },
+    });
+    const roomHistory = await roomHistoryRes.json();
+    const leakedToRoom = (roomHistory.messages || []).some((m) => m.text === dmText);
+    if (leakedToRoom) {
+      throw new Error('Private DM leaked into the general room history!');
+    }
+    console.log('✓ DM correctly hidden from the general room history');
+
+    dmSocket.disconnect();
+
     console.log('\n========================================');
     console.log(' ALL TESTS PASSED SUCCESSFULLY! (100%) ');
     console.log('========================================\n');
   } finally {
-    server.close();
+    // Close remaining sockets so server.close() can complete
+    try { userASocket.disconnect(); } catch {}
+    try { clientSocket.disconnect(); } catch {}
+    try { dmSocket.disconnect(); } catch {}
+    try { unauthSocket.disconnect(); } catch {}
+    await new Promise((resolve) => server.close(resolve));
+    io.close();
+    process.exit(0);
   }
 }
 
