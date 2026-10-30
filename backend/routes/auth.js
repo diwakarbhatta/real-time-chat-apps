@@ -27,7 +27,12 @@ function validateCredentials(username, password) {
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   const { username, name, email, password } = req.body || {};
-  const chosenUsername = (username || name || '').trim();
+  const rawName = username || name || '';
+  if (typeof rawName !== 'string' || (email != null && typeof email !== 'string') || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Username/name, email, and password must be valid strings' });
+  }
+
+  const chosenUsername = rawName.trim();
   const chosenEmail = email ? email.trim().toLowerCase() : null;
 
   const validationError = validateCredentials(chosenUsername, password);
@@ -70,15 +75,19 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   const { username, email, identifier, password } = req.body || {};
-  const loginId = (identifier || email || username || '').trim();
+  const rawId = identifier || email || username || '';
+  if (typeof rawId !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Username/email and password are required strings' });
+  }
 
-  if (!loginId || typeof password !== 'string') {
+  const loginId = rawId.trim();
+  if (!loginId || !password) {
     return res.status(400).json({ error: 'Username/email and password are required' });
   }
 
   const user = User.findByIdentifier(loginId);
   if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials. User not found.' });
+    return res.status(401).json({ error: 'Invalid username/email or password.' });
   }
 
   const matches = await bcrypt.compare(password, user.password_hash);

@@ -211,10 +211,16 @@
         },
       });
 
+      const displayedMessageIds = new Set();
+
       function formatTime(isoString) {
         if (!isoString) return "";
         try {
-          const d = new Date(isoString);
+          let str = isoString;
+          if (typeof str === "string" && !str.endsWith("Z") && !str.includes("+")) {
+            str = str.replace(" ", "T") + "Z";
+          }
+          const d = new Date(str);
           return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         } catch {
           return "";
@@ -235,6 +241,10 @@
       }
 
       function appendChatMessage(msg) {
+        if (msg && msg.id) {
+          if (displayedMessageIds.has(msg.id)) return;
+          displayedMessageIds.add(msg.id);
+        }
         if (emptyStateEl) emptyStateEl.style.display = "none";
 
         const isMine =
@@ -273,12 +283,9 @@
         statusBadge.className = "badge";
         statusBadge.textContent = "Live connected";
 
-        // Join room with authenticated user identity
+        // Join room with verified session token
         socket.emit("join", {
-          username: currentUsername,
-          userId: session.id || null,
-          email: currentEmail,
-          token: session.token || null,
+          token: session.token,
           status: "Online",
         });
       });
@@ -291,6 +298,12 @@
       socket.on("connect_error", () => {
         statusBadge.className = "badge badge--offline";
         statusBadge.textContent = "Connection error";
+      });
+
+      socket.on("auth-error", (data) => {
+        statusBadge.className = "badge badge--offline";
+        statusBadge.textContent = "Auth required";
+        logout();
       });
 
       // Receive full chat history upon joining
@@ -391,15 +404,23 @@
         const text = messageInput.value.trim();
         if (!text) return;
 
-        socket.emit("chat-message", text);
+        const sendBtn = document.getElementById("send-btn");
+        if (sendBtn) sendBtn.disabled = true;
 
         // Stop typing state
         isTypingEmit = false;
         clearTimeout(emitStopTypingTimer);
         socket.emit("typing", false);
 
-        messageInput.value = "";
-        messageInput.focus();
+        socket.emit("chat-message", text, (ack) => {
+          if (sendBtn) sendBtn.disabled = false;
+          if (ack && ack.success) {
+            messageInput.value = "";
+            messageInput.focus();
+          } else {
+            alert((ack && ack.error) || "Failed to deliver message. Your draft has been kept so you can retry.");
+          }
+        });
       });
     </script>
   </body>

@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pulse-chat-secret-key-2026';
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret || typeof rawSecret !== 'string' || !rawSecret.trim()) {
+  throw new Error('Fatal: JWT_SECRET environment variable is required. Please set JWT_SECRET in your .env file or environment.');
+}
+
+const JWT_SECRET = rawSecret.trim();
 const JWT_EXPIRES_IN = '7d';
 
 function signToken(user) {

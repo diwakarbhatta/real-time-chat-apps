@@ -59,12 +59,12 @@ real-time-chat-apps/
 npm install
 ```
 
-### 2. Configure Environment (Optional)
-Copy `.env.example` to `.env`:
+### 2. Configure Environment (Required)
+Copy `.env.example` to `.env` and configure your secret:
 ```bash
 cp .env.example .env
 ```
-Default port is `5000` and JWT secret has a safe fallback for local development.
+Ensure `JWT_SECRET` is set to a unique, secure secret key in your `.env` file (e.g., generated with `openssl rand -hex 32`). Defaults to port `5000`.
 
 ### 3. Start the Server
 ```bash

@@ -1,3 +1,5 @@
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-suite-secure-jwt-signing-secret-key-32-bytes';
+
 const http = require('http');
 const { io: ioClient } = require('socket.io-client');
 const { app, server, io } = require('./backend/server');
@@ -91,6 +93,28 @@ async function runTests() {
 
     // 6. Test Socket.IO Real-time messaging
     console.log('\n[3] Testing Real-Time WebSockets...');
+
+    // Verify unauthenticated and null join is rejected
+    const unauthSocket = ioClient(baseUrl);
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Unauth test timed out')), 4000);
+      let nullTested = false;
+      unauthSocket.on('connect', () => {
+        unauthSocket.emit('join', null);
+      });
+      unauthSocket.on('auth-error', () => {
+        if (!nullTested) {
+          nullTested = true;
+          unauthSocket.emit('join', { username: 'Imposter' });
+        } else {
+          console.log('✓ Null and unauthenticated socket joins correctly rejected with auth-error');
+          clearTimeout(timeout);
+          unauthSocket.disconnect();
+          resolve();
+        }
+      });
+    });
+
     const clientSocket = ioClient(baseUrl, {
       auth: { token: loginData.token },
     });
@@ -101,7 +125,6 @@ async function runTests() {
       clientSocket.on('connect', () => {
         console.log('✓ Socket.IO client connected with ID:', clientSocket.id);
         clientSocket.emit('join', {
-          username: testUsername,
           token: loginData.token,
           status: 'Online',
         });
@@ -114,8 +137,11 @@ async function runTests() {
           joinedReceived = true;
           console.log(`✓ Active users broadcast received with ${users.length} user(s)`);
 
-          // Send a chat message
-          clientSocket.emit('chat-message', 'Hello, this is a real-time test message!');
+          // Send a chat message with acknowledgement
+          clientSocket.emit('chat-message', 'Hello, this is a real-time test message!', (ack) => {
+            if (!ack || !ack.success) throw new Error('Message send acknowledgement failed');
+            console.log('✓ Server acknowledgement received for sent message');
+          });
         }
       });
 
