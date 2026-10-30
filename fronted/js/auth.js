@@ -21,13 +21,18 @@ function getSession() {
   }
 }
 
-function setSession(user) {
-  localStorage.setItem(STORAGE_SESSION, JSON.stringify(user));
+function setSession(sessionData) {
+  localStorage.setItem(STORAGE_SESSION, JSON.stringify(sessionData));
+}
+
+function getToken() {
+  const session = getSession();
+  return session ? session.token : null;
 }
 
 function requireAuth() {
   const session = getSession();
-  if (!session) {
+  if (!session || (!session.username && !session.name)) {
     window.location.href = "/login.html";
     return null;
   }
@@ -39,11 +44,17 @@ function logout() {
   window.location.href = "/login.html";
 }
 
-function showAlert(el, message, type) {
+function showAlert(el, message, type = "error") {
   if (!el) return;
   el.hidden = false;
   el.className = `alert alert--${type}`;
   el.textContent = message;
+}
+
+function hideAlert(el) {
+  if (!el) return;
+  el.hidden = true;
+  el.textContent = "";
 }
 
 function setFieldError(input, message) {
@@ -55,10 +66,48 @@ function setFieldError(input, message) {
 }
 
 function initials(name) {
-  return (name || "?")
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// Backend API helpers
+async function apiRegister({ username, email, password }) {
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Registration failed");
+  }
+  return data;
+}
+
+async function apiLogin({ identifier, password }) {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Login failed");
+  }
+  return data;
+}
+
+async function apiMe() {
+  const token = getToken();
+  if (!token) throw new Error("No active token");
+  const res = await fetch("/api/auth/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Authentication check failed");
+  return data.user;
 }

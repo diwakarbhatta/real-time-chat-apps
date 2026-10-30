@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Design System — Pulse Chat</title>
+    <link rel="stylesheet" href="/css/design-system.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/index.html">
+        <span class="brand__mark" aria-hidden="true"></span>
+        Pulse Chat
+      </a>
+      <nav class="nav-links">
+        <a class="btn btn--secondary" href="/index.html">Home</a>
+        <a class="btn btn--primary" href="/chat.html">Open Chat</a>
+      </nav>
+    </header>
+
+    <main class="page" style="padding: 48px 0 80px;">
+      <div class="grid">
+        <section class="col-12 ds-section">
+          <p class="caption">Lab Sheet 6 · Design System Specification</p>
+          <h1>Pulse Design System</h1>
+          <p>
+            Standardized typography, color palette, responsive 12-column grid layout, and core interactive components.
+          </p>
+        </section>
+
+        <!-- Color Swatches -->
+        <section class="col-12 ds-section">
+          <h2>Color Tokens</h2>
+          <p class="caption">Semantic color tokens used throughout the application</p>
+          <div class="swatch-row">
+            <figure class="swatch">
+              <div class="swatch__chip" style="background: var(--color-primary);"></div>
+              <figcaption><strong>Primary</strong><br />#4f46e5</figcaption>
+            </figure>
+            <figure class="swatch">
+              <div class="swatch__chip" style="background: var(--color-secondary);"></div>
+              <figcaption><strong>Secondary</strong><br />#0d9488</figcaption>
+            </figure>
+            <figure class="swatch">
+              <div class="swatch__chip" style="background: var(--color-success);"></div>
+              <figcaption><strong>Success</strong><br />#059669</figcaption>
+            </figure>
+            <figure class="swatch">
+              <div class="swatch__chip" style="background: var(--color-error);"></div>
+              <figcaption><strong>Error</strong><br />#dc2626</figcaption>
+            </figure>
+            <figure class="swatch">
+              <div class="swatch__chip" style="background: var(--color-neutral-900);"></div>
+              <figcaption><strong>Neutral 900</strong><br />#0f172a</figcaption>
+            </figure>
+            <figure class="swatch">
+              <div class="swatch__chip" style="background: var(--color-neutral-100); border: 1px solid var(--color-neutral-200);"></div>
+              <figcaption><strong>Neutral 100</strong><br />#f1f5f9</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <!-- Typography -->
+        <section class="col-12 ds-section">
+          <h2>Typography</h2>
+          <p class="caption">Plus Jakarta Sans font scale</p>
+          <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <span class="caption">H1 — 2rem / 32px Bold</span>
+              <h1>The quick brown fox jumps over the lazy dog</h1>
+            </div>
+            <div>
+              <span class="caption">H2 — 1.5rem / 24px SemiBold</span>
+              <h2>Collaborate in real time with high fidelity</h2>
+            </div>
+            <div>
+              <span class="caption">Body — 1rem / 16px Regular</span>
+              <p style="margin: 0;">
+                Pulse Chat delivers fast WebSockets, encrypted authentication, and persistent chat threads.
+              </p>
+            </div>
+            <div>
+              <span class="caption">Caption — 0.75rem / 12px Medium</span>
+              <p class="caption" style="margin: 0;">Caption text for timestamps, indicators, and metadata</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Components -->
+        <section class="col-12 ds-section">
+          <h2>Components</h2>
+          <div class="card" style="display: flex; flex-direction: column; gap: 24px;">
+            <div>
+              <p class="caption">Buttons</p>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button class="btn btn--primary">Primary Button</button>
+                <button class="btn btn--secondary">Secondary Button</button>
+                <button class="btn btn--ghost">Ghost Button</button>
+                <button class="btn btn--primary" disabled>Disabled</button>
+              </div>
+            </div>
+
+            <div>
+              <p class="caption">Badges</p>
+              <div style="display: flex; gap: 12px; align-items: center;">
+                <span class="badge">Online Status</span>
+                <span class="badge" style="background: var(--color-primary-soft); color: var(--color-primary);">Workspace</span>
+              </div>
+            </div>
+
+            <div>
+              <p class="caption">Avatars</p>
+              <div style="display: flex; gap: 12px; align-items: center;">
+                <div class="avatar">DB</div>
+                <div class="avatar" style="background: var(--color-primary-soft); color: var(--color-primary);">AI</div>
+                <div class="avatar" style="background: var(--color-success-soft); color: var(--color-success);">JD</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

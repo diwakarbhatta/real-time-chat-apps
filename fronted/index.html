@@ -64,5 +64,18 @@
         </aside>
       </div>
     </main>
+    <script src="/js/auth.js"></script>
+    <script>
+      const session = getSession();
+      if (session && (session.username || session.name)) {
+        const nav = document.querySelector(".nav-links");
+        if (nav) {
+          nav.innerHTML = `
+            <a class="btn btn--ghost" href="/design-system.html">Design system</a>
+            <a class="btn btn--primary" href="/chat.html">Open Chat &rarr;</a>
+          `;
+        }
+      }
+    </script>
   </body>
 </html>

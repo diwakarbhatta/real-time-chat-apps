@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Workspace — Pulse Chat</title>
+    <link rel="stylesheet" href="/css/design-system.css" />
+    <style>
+      /* Additional helper styling to polish the chat experience */
+      .chat-header-user {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .user-list-item {
+        transition: background 0.15s ease;
+      }
+      .user-list-item:hover {
+        background: var(--color-neutral-100);
+      }
+      .user-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .user-info .username {
+        font-weight: 600;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .user-info .user-status {
+        font-size: 0.75rem;
+        color: var(--color-success);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .user-info .user-status::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--color-success);
+      }
+      .bubble-content {
+        word-break: break-word;
+        line-height: 1.45;
+      }
+      .bubble-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4px;
+      }
+      .bubble-time {
+        font-size: 0.7rem;
+        opacity: 0.7;
+      }
+      .badge--offline {
+        background: var(--color-error-soft);
+        color: var(--color-error);
+      }
+      .badge--offline::before {
+        background: var(--color-error);
+      }
+      .typing-indicator {
+        font-size: 0.8125rem;
+        color: var(--color-neutral-500);
+        font-style: italic;
+        padding: 4px 24px;
+        min-height: 24px;
+      }
+      .empty-state {
+        text-align: center;
+        margin: auto;
+        color: var(--color-neutral-500);
+        padding: var(--space-8);
+      }
+      .empty-state h3 {
+        color: var(--color-neutral-900);
+        margin-bottom: var(--space-2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-app">
+      <!-- Top Navigation -->
+      <header class="topbar">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <a class="brand" href="/index.html">
+            <span class="brand__mark" aria-hidden="true"></span>
+            Pulse Chat
+          </a>
+          <span id="connection-status" class="badge">Connecting...</span>
+        </div>
+        <div class="chat-header-user">
+          <div id="my-avatar" class="avatar" style="background: var(--color-primary-soft); color: var(--color-primary);">?</div>
+          <div>
+            <div id="my-username" style="font-weight: 600; font-size: 0.9375rem; line-height: 1.2;">User</div>
+            <div id="my-email" class="caption" style="font-size: 0.75rem;">user@example.com</div>
+          </div>
+          <button id="logout-btn" class="btn btn--secondary" style="margin-left: 12px; height: 36px; padding: 0 14px;">Log out</button>
+        </div>
+      </header>
+
+      <!-- Main Chat Body -->
+      <div class="chat-body">
+        <!-- Sidebar: Active Users -->
+        <aside class="sidebar">
+          <div class="sidebar__head">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <h2 style="font-size: 1rem; margin: 0;">Online Members</h2>
+              <span id="user-count-badge" class="badge" style="padding: 2px 8px; font-size: 0.75rem;">0</span>
+            </div>
+            <p class="caption" style="margin: 6px 0 0;">Active in workspace</p>
+          </div>
+          <ul id="user-list" class="user-list">
+            <!-- Dynamically populated -->
+          </ul>
+        </aside>
+
+        <!-- Chat Thread -->
+        <main class="thread">
+          <div class="thread__head">
+            <div>
+              <h2 style="font-size: 1.125rem; margin: 0 0 2px;"># general-chat</h2>
+              <p class="caption" style="margin: 0;">Real-time room powered by WebSockets and SQLite</p>
+            </div>
+            <div>
+              <span class="caption" id="room-active-summary">Room: Active</span>
+            </div>
+          </div>
+
+          <!-- Messages Container -->
+          <div id="messages-container" class="messages">
+            <div id="empty-state" class="empty-state">
+              <h3>Welcome to Pulse Chat!</h3>
+              <p>Say hello to everyone in the room to kick off the conversation.</p>
+            </div>
+          </div>
+
+          <!-- Typing indicator -->
+          <div id="typing-box" class="typing-indicator" hidden></div>
+
+          <!-- Composer -->
+          <form id="message-form" class="composer">
+            <input
+              id="message-input"
+              type="text"
+              placeholder="Write a message... (Press Enter to send)"
+              autocomplete="off"
+              maxlength="1500"
+              required
+            />
+            <button id="send-btn" class="btn btn--primary" type="submit">
+              <span>Send</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </form>
+        </main>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+      // 1. Verify authentication
+      const session = requireAuth();
+      if (!session) {
+        // Will redirect to login.html via requireAuth()
+        throw new Error("Unauthorized");
+      }
+
+      const currentUsername = session.username || session.name || "Guest";
+      const currentEmail = session.email || "";
+
+      // Update header profile display
+      const myAvatarEl = document.getElementById("my-avatar");
+      const myUsernameEl = document.getElementById("my-username");
+      const myEmailEl = document.getElementById("my-email");
+      const statusBadge = document.getElementById("connection-status");
+      const userListEl = document.getElementById("user-list");
+      const userCountBadge = document.getElementById("user-count-badge");
+      const messagesContainer = document.getElementById("messages-container");
+      const emptyStateEl = document.getElementById("empty-state");
+      const typingBox = document.getElementById("typing-box");
+      const messageForm = document.getElementById("message-form");
+      const messageInput = document.getElementById("message-input");
+      const logoutBtn = document.getElementById("logout-btn");
+
+      myAvatarEl.textContent = initials(currentUsername);
+      myUsernameEl.textContent = currentUsername;
+      myEmailEl.textContent = currentEmail || "Signed in";
+
+      logoutBtn.addEventListener("click", () => {
+        logout();
+      });
+
+      // 2. Initialize Socket.IO connection
+      const socket = io({
+        auth: {
+          token: session.token || null,
+        },
+      });
+
+      function formatTime(isoString) {
+        if (!isoString) return "";
+        try {
+          const d = new Date(isoString);
+          return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        } catch {
+          return "";
+        }
+      }
+
+      function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      function appendSystemMessage(text) {
+        if (emptyStateEl) emptyStateEl.style.display = "none";
+        const div = document.createElement("div");
+        div.className = "bubble bubble--system";
+        div.textContent = text;
+        messagesContainer.appendChild(div);
+        scrollToBottom();
+      }
+
+      function appendChatMessage(msg) {
+        if (emptyStateEl) emptyStateEl.style.display = "none";
+
+        const isMine =
+          (msg.username && msg.username.toLowerCase() === currentUsername.toLowerCase()) ||
+          (msg.from && msg.from === socket.id);
+
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${isMine ? "bubble--mine" : ""}`;
+
+        const meta = document.createElement("div");
+        meta.className = "bubble-meta";
+
+        const sender = document.createElement("strong");
+        sender.textContent = isMine ? "You" : (msg.username || "Anonymous");
+
+        const time = document.createElement("span");
+        time.className = "bubble-time";
+        time.textContent = formatTime(msg.time || msg.created_at);
+
+        meta.appendChild(sender);
+        meta.appendChild(time);
+
+        const body = document.createElement("div");
+        body.className = "bubble-content";
+        body.textContent = msg.text;
+
+        bubble.appendChild(meta);
+        bubble.appendChild(body);
+
+        messagesContainer.appendChild(bubble);
+        scrollToBottom();
+      }
+
+      // Socket lifecycle events
+      socket.on("connect", () => {
+        statusBadge.className = "badge";
+        statusBadge.textContent = "Live connected";
+
+        // Join room with authenticated user identity
+        socket.emit("join", {
+          username: currentUsername,
+          userId: session.id || null,
+          email: currentEmail,
+          token: session.token || null,
+          status: "Online",
+        });
+      });
+
+      socket.on("disconnect", () => {
+        statusBadge.className = "badge badge--offline";
+        statusBadge.textContent = "Disconnected";
+      });
+
+      socket.on("connect_error", () => {
+        statusBadge.className = "badge badge--offline";
+        statusBadge.textContent = "Connection error";
+      });
+
+      // Receive full chat history upon joining
+      socket.on("history", (history = []) => {
+        if (history.length > 0 && emptyStateEl) {
+          emptyStateEl.style.display = "none";
+        }
+        history.forEach((msg) => {
+          appendChatMessage(msg);
+        });
+      });
+
+      // Receive incoming chat messages
+      socket.on("chat-message", (msg) => {
+        appendChatMessage(msg);
+      });
+
+      // Receive system messages (e.g. user joined / left)
+      socket.on("system", (data) => {
+        const text = typeof data === "string" ? data : data.text;
+        appendSystemMessage(text);
+      });
+
+      // Update online members list
+      socket.on("users", (users = []) => {
+        userListEl.innerHTML = "";
+        userCountBadge.textContent = users.length;
+
+        users.forEach((u) => {
+          const isCurrentUser = u.username.toLowerCase() === currentUsername.toLowerCase();
+          const li = document.createElement("li");
+          li.className = `user-list-item ${isCurrentUser ? "is-active" : ""}`;
+
+          const avatar = document.createElement("div");
+          avatar.className = "avatar";
+          avatar.textContent = initials(u.username);
+          if (isCurrentUser) {
+            avatar.style.background = "var(--color-primary-soft)";
+            avatar.style.color = "var(--color-primary)";
+          }
+
+          const info = document.createElement("div");
+          info.className = "user-info";
+
+          const name = document.createElement("span");
+          name.className = "username";
+          name.textContent = isCurrentUser ? `${u.username} (You)` : u.username;
+
+          const status = document.createElement("span");
+          status.className = "user-status";
+          status.textContent = u.status || "Online";
+
+          info.appendChild(name);
+          info.appendChild(status);
+
+          li.appendChild(avatar);
+          li.appendChild(info);
+
+          userListEl.appendChild(li);
+        });
+      });
+
+      // Typing indicator handling
+      let typingTimeout = null;
+      socket.on("typing", ({ username, isTyping }) => {
+        if (!isTyping || username.toLowerCase() === currentUsername.toLowerCase()) {
+          typingBox.hidden = true;
+          typingBox.textContent = "";
+        } else {
+          typingBox.hidden = false;
+          typingBox.textContent = `${username} is typing...`;
+          clearTimeout(typingTimeout);
+          typingTimeout = setTimeout(() => {
+            typingBox.hidden = true;
+            typingBox.textContent = "";
+          }, 2500);
+        }
+      });
+
+      let isTypingEmit = false;
+      let emitStopTypingTimer = null;
+
+      messageInput.addEventListener("input", () => {
+        if (!isTypingEmit) {
+          isTypingEmit = true;
+          socket.emit("typing", true);
+        }
+        clearTimeout(emitStopTypingTimer);
+        emitStopTypingTimer = setTimeout(() => {
+          isTypingEmit = false;
+          socket.emit("typing", false);
+        }, 1200);
+      });
+
+      // Submit message
+      messageForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = messageInput.value.trim();
+        if (!text) return;
+
+        socket.emit("chat-message", text);
+
+        // Stop typing state
+        isTypingEmit = false;
+        clearTimeout(emitStopTypingTimer);
+        socket.emit("typing", false);
+
+        messageInput.value = "";
+        messageInput.focus();
+      });
+    </script>
+  </body>
+</html>

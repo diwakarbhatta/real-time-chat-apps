@@ -16,20 +16,20 @@
         <div class="card">
           <p class="caption">Welcome back</p>
           <h1>Log in to your workspace</h1>
-          <p>Use the email and password you created on the register screen.</p>
+          <p>Use the username or email and password for your Pulse account.</p>
           <div id="alert" class="alert alert--error" hidden></div>
           <form id="login-form" novalidate>
             <div class="field">
-              <label for="email">Email</label>
-              <input id="email" name="email" type="email" autocomplete="email" placeholder="you@college.edu" required />
-              <span class="field__error">Enter a valid email.</span>
+              <label for="identifier">Email or Username</label>
+              <input id="identifier" name="identifier" type="text" autocomplete="username" placeholder="you@college.edu or Diwakar" required />
+              <span class="field__error">Enter your email or username.</span>
             </div>
             <div class="field">
               <label for="password">Password</label>
               <input id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required />
               <span class="field__error">Password is required.</span>
             </div>
-            <button class="btn btn--primary btn--block" type="submit">Log in</button>
+            <button id="submit-btn" class="btn btn--primary btn--block" type="submit">Log in</button>
           </form>
           <p class="caption" style="margin-top: 20px">
             New here? <a href="/register.html">Create an account</a>
@@ -39,36 +39,59 @@
     </div>
     <script src="/js/auth.js"></script>
     <script>
-      document.getElementById("login-form").addEventListener("submit", (event) => {
+      const form = document.getElementById("login-form");
+      const idInput = document.getElementById("identifier");
+      const passwordInput = document.getElementById("password");
+      const alertBox = document.getElementById("alert");
+      const submitBtn = document.getElementById("submit-btn");
+
+      form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const email = document.getElementById("email");
-        const password = document.getElementById("password");
-        const alertBox = document.getElementById("alert");
+
+        setFieldError(idInput, "");
+        setFieldError(passwordInput, "");
+        hideAlert(alertBox);
+
         let valid = true;
+        const identifier = idInput.value.trim();
+        const password = passwordInput.value;
 
-        setFieldError(email, "");
-        setFieldError(password, "");
-        alertBox.hidden = true;
-
-        if (!email.value.trim() || !email.value.includes("@")) {
-          setFieldError(email, "Enter a valid email.");
+        if (!identifier) {
+          setFieldError(idInput, "Enter your email or username.");
           valid = false;
         }
-        if (!password.value) {
-          setFieldError(password, "Password is required.");
+
+        if (!password) {
+          setFieldError(passwordInput, "Password is required.");
           valid = false;
         }
+
         if (!valid) return;
 
-        const user = getUsers().find(
-          (item) => item.email.toLowerCase() === email.value.trim().toLowerCase() && item.password === password.value
-        );
-        if (!user) {
-          showAlert(alertBox, "Those credentials do not match an account.", "error");
-          return;
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Logging in...";
+
+        try {
+          const res = await apiLogin({ identifier, password });
+
+          setSession({
+            token: res.token,
+            id: res.user.id,
+            username: res.user.username,
+            name: res.user.username,
+            email: res.user.email,
+            status: res.user.status || "Online",
+          });
+
+          showAlert(alertBox, "Login successful! Redirecting...", "success");
+          setTimeout(() => {
+            window.location.href = "/chat.html";
+          }, 400);
+        } catch (err) {
+          showAlert(alertBox, err.message || "Invalid credentials. Try again.", "error");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Log in";
         }
-        setSession({ name: user.name, email: user.email, status: user.status || "Online" });
-        window.location.href = "/chat.html";
       });
     </script>
   </body>
