@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Pulse Chat</title>
+  <link rel="stylesheet" href="/css/design-system.css" />
+  <style>
+    /* ── Page scaffold ── */
+    body { margin: 0; background: var(--cream); font-family: 'Inter', sans-serif; }
+
+    /* ── Topbar overrides ── */
+    .topbar { position: sticky; top: 0; z-index: 100; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .topbar-user { display: flex; align-items: center; gap: 10px; font-weight: 600;
+                   font-size: 0.9rem; color: var(--text-700); }
+
+    /* ── Settings layout ── */
+    .settings-layout {
+      display: flex;
+      flex-direction: row;
+      height: calc(100vh - 64px);
+      overflow: hidden;
+    }
+
+    /* ── Left sidebar tabs ── */
+    .settings-tabs {
+      width: 220px;
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(14px);
+      border-right: 1px solid rgba(107,127,212,0.12);
+      padding: 24px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .settings-tabs h2 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-500);
+      margin: 0 0 12px 8px;
+    }
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-700);
+      transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+      user-select: none;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+    }
+    .tab-item:hover {
+      background: rgba(107,127,212,0.08);
+      color: var(--slate-blue);
+    }
+    .tab-item.active {
+      background: white;
+      color: var(--slate-blue);
+      font-weight: 600;
+      box-shadow: 4px 4px 14px rgba(107,127,212,0.18), -2px -2px 8px rgba(255,255,255,0.9);
+    }
+    .tab-icon { font-size: 1.1rem; }
+
+    /* ── Content area ── */
+    .settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    /* ── Sections ── */
+    .settings-section { display: none; }
+    .settings-section.active { display: block; }
+
+    .settings-section h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-900);
+      margin: 0 0 4px 0;
+    }
+    .settings-section .section-desc {
+      color: var(--text-500);
+      font-size: 0.88rem;
+      margin: 0 0 28px 0;
+    }
+
+    /* ── Profile avatar block ── */
+    .avatar-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding: 28px;
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: 8px 8px 24px rgba(107,127,212,0.12), -4px -4px 14px rgba(255,255,255,0.9);
+    }
+
+    /* ── Danger zone card ── */
+    .danger-zone {
+      margin-top: 32px;
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 2px solid rgba(255,107,138,0.3);
+      padding: 24px 28px;
+      box-shadow: 4px 4px 16px rgba(255,107,138,0.1);
+    }
+    .danger-zone h3 {
+      color: #D63B6B;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin: 0 0 6px 0;
+    }
+    .danger-zone p {
+      color: var(--text-500);
+      font-size: 0.88rem;
+      margin: 0 0 16px 0;
+    }
+
+    /* ── Success / info alert inline ── */
+    .inline-alert {
+      display: none;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+    .inline-alert.success { background: #E8FFF2; color: #2D8A5E; }
+    .inline-alert.error   { background: #FFE8EE; color: #D63B6B; }
+    .inline-alert.show    { display: block; }
+
+    /* ── Appearance cards ── */
+    .theme-cards {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .theme-card {
+      flex: 1;
+      min-width: 110px;
+      max-width: 160px;
+      border-radius: var(--radius-lg);
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      background: white;
+      border: 2px solid transparent;
+      box-shadow: 4px 4px 14px rgba(107,127,212,0.12), -2px -2px 8px rgba(255,255,255,0.9);
+      transition: border-color 0.2s, transform 0.15s;
+      user-select: none;
+    }
+    .theme-card:hover { transform: translateY(-2px); }
+    .theme-card.selected { border-color: var(--slate-blue); }
+    .theme-card .theme-preview {
+      width: 56px; height: 40px;
+      border-radius: 10px;
+      margin: 0 auto 10px;
+    }
+    .theme-card.light-theme .theme-preview {
+      background: linear-gradient(135deg,#FFF5EC 60%, #E8E8F8);
+      border: 1.5px solid rgba(107,127,212,0.18);
+    }
+    .theme-card.dark-theme .theme-preview {
+      background: linear-gradient(135deg,#1E1B4B,#2D2869);
+    }
+    .theme-card.system-theme .theme-preview {
+      background: linear-gradient(135deg,#FFF5EC 50%, #1E1B4B 50%);
+      border: 1.5px solid rgba(107,127,212,0.18);
+    }
+    .theme-card-label { font-size: 0.85rem; font-weight: 600; color: var(--text-700); }
+
+    /* ── Font size radios ── */
+    .font-radio-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .font-radio-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--radius-full);
+      background: white;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-700);
+      box-shadow: 3px 3px 10px rgba(107,127,212,0.12);
+      transition: border-color 0.18s;
+      user-select: none;
+    }
+    .font-radio-label input[type="radio"] { display: none; }
+    .font-radio-label.selected { border-color: var(--slate-blue); color: var(--slate-blue); font-weight: 600; }
+
+    /* ── Color swatches ── */
+    .color-swatches { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 28px; }
+    .swatch {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: transform 0.15s, border-color 0.18s;
+      box-shadow: 2px 2px 8px rgba(0,0,0,0.12);
+    }
+    .swatch:hover { transform: scale(1.15); }
+    .swatch.selected { border-color: var(--text-700); }
+
+    /* ── Toggle switch ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid rgba(107,127,212,0.08);
+    }
+    .toggle-row:last-of-type { border-bottom: none; }
+    .toggle-label { font-size: 0.93rem; font-weight: 500; color: var(--text-700); }
+    .toggle-label small { display: block; font-size: 0.78rem; color: var(--text-500); font-weight: 400; }
+
+    /* Toggle switch component */
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(107,127,212,0.18);
+      cursor: pointer;
+      transition: background 0.22s;
+      box-shadow: inset 1px 1px 4px rgba(107,127,212,0.18);
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 1px 1px 4px rgba(0,0,0,0.18);
+      transition: transform 0.22s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--slate-blue); }
+    .toggle input:checked + .toggle-track::after { transform: translateX(22px); }
+
+    /* ── Settings card wrapper ── */
+    .s-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: 8px 8px 24px rgba(107,127,212,0.12), -4px -4px 14px rgba(255,255,255,0.9);
+      padding: 28px 32px;
+      margin-bottom: 24px;
+    }
+    .s-card h3 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-500);
+      margin: 0 0 20px 0;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--text-900);
+      color: white;
+      padding: 12px 24px;
+      border-radius: var(--radius-full);
+      font-size: 0.88rem;
+      font-weight: 500;
+      z-index: 9999;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Security section ── */
+    .security-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(107,127,212,0.08);
+      margin-bottom: 16px;
+    }
+    .security-info .si-icon {
+      font-size: 1.5rem;
+    }
+    .security-info .si-text strong { display: block; font-size: 0.93rem; color: var(--text-900); }
+    .security-info .si-text span { font-size: 0.8rem; color: var(--text-500); }
+  </style>
+</head>
+<body>
+
+<!-- ── Topbar ── -->
+<header class="topbar">
+  <a class="brand" href="/chat.html">
+    <div class="brand__mark"></div>
+    Pulse
+  </a>
+  <div class="topbar-right">
+    <div class="topbar-user">
+      <div class="avatar" id="topbar-avatar">?</div>
+      <span id="topbar-name">Loading…</span>
+    </div>
+    <button class="btn btn--ghost" id="logout-btn" style="font-size:0.85rem;">Log out</button>
+  </div>
+</header>
+
+<!-- ── Settings layout ── -->
+<div class="settings-layout">
+
+  <!-- Left sidebar -->
+  <nav class="settings-tabs">
+    <h2>Settings</h2>
+    <button class="tab-item active" data-tab="profile">
+      <span class="tab-icon">👤</span> Profile
+    </button>
+    <button class="tab-item" data-tab="appearance">
+      <span class="tab-icon">🎨</span> Appearance
+    </button>
+    <button class="tab-item" data-tab="notifications">
+      <span class="tab-icon">🔔</span> Notifications
+    </button>
+    <button class="tab-item" data-tab="privacy">
+      <span class="tab-icon">🔒</span> Privacy
+    </button>
+  </nav>
+
+  <!-- Right content -->
+  <main class="settings-content">
+
+    <!-- ════════════════════════════════
+         PANEL 1 · Profile
+    ════════════════════════════════ -->
+    <section class="settings-section active" id="tab-profile">
+      <h1>Profile</h1>
+      <p class="section-desc">Manage your public information and account status.</p>
+
+      <div id="profile-alert" class="inline-alert"></div>
+
+      <!-- Avatar block -->
+      <div class="avatar-block">
+        <div class="avatar avatar--xl" id="profile-avatar">?</div>
+        <button class="btn btn--secondary" id="change-photo-btn" style="font-size:0.82rem; min-height:36px; padding:0 16px;">
+          📷 Change photo
+        </button>
+      </div>
+
+      <!-- Fields -->
+      <div class="s-card">
+        <h3>Account Info</h3>
+        <div class="field">
+          <label for="display-name">Display Name</label>
+          <input type="text" id="display-name" placeholder="Your name" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" readonly style="opacity:0.65; cursor:not-allowed;" />
+        </div>
+        <div class="field">
+          <label for="status-select">Status</label>
+          <select id="status-select">
+            <option value="online">🟢 Online</option>
+            <option value="away">🟡 Away</option>
+            <option value="busy">🔴 Busy</option>
+            <option value="invisible">⚫ Invisible</option>
+          </select>
+        </div>
+        <button class="btn btn--primary" id="save-profile-btn">Save Changes</button>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="danger-zone">
+        <h3>⚠️ Danger Zone</h3>
+        <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
+        <button class="btn btn--danger" id="delete-account-btn">Delete Account</button>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════
+         PANEL 2 · Appearance
+    ════════════════════════════════ -->
+    <section class="settings-section" id="tab-appearance">
+      <h1>Appearance</h1>
+      <p class="section-desc">Customize how Pulse looks and feels.</p>
+
+      <div class="s-card">
+        <h3>Theme</h3>
+        <div class="theme-cards">
+          <div class="theme-card light-theme selected" data-theme="light">
+            <div class="theme-preview"></div>
+            <div class="theme-card-label">Light</div>
+          </div>
+          <div class="theme-card dark-theme" data-theme="dark">
+            <div class="theme-preview"></div>
+            <div class="theme-card-label">Dark</div>
+          </div>
+          <div class="theme-card system-theme" data-theme="system">
+            <div class="theme-preview"></div>
+            <div class="theme-card-label">System</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-card">
+        <h3>Font Size</h3>
+        <div class="font-radio-group">
+          <label class="font-radio-label" data-size="small">
+            <input type="radio" name="font-size" value="small" /> Small
+          </label>
+          <label class="font-radio-label selected" data-size="medium">
+            <input type="radio" name="font-size" value="medium" checked /> Medium
+          </label>
+          <label class="font-radio-label" data-size="large">
+            <input type="radio" name="font-size" value="large" /> Large
+          </label>
+        </div>
+      </div>
+
+      <div class="s-card">
+        <h3>Accent Color</h3>
+        <div class="color-swatches">
+          <div class="swatch selected" data-color="slate-blue"
+               style="background: #6B7FD4;" title="Slate Blue"></div>
+          <div class="swatch" data-color="mint"
+               style="background: #7EE8A2;" title="Mint"></div>
+          <div class="swatch" data-color="lavender"
+               style="background: #C4B5FD;" title="Lavender"></div>
+          <div class="swatch" data-color="rose"
+               style="background: #FF6B8A;" title="Rose"></div>
+          <div class="swatch" data-color="amber"
+               style="background: #FBBF24;" title="Amber"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════
+         PANEL 3 · Notifications
+    ════════════════════════════════ -->
+    <section class="settings-section" id="tab-notifications">
+      <h1>Notifications</h1>
+      <p class="section-desc">Choose what you're notified about.</p>
+
+      <div class="s-card">
+        <h3>Notification Preferences</h3>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            New messages
+            <small>Get notified for every new message</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-new-messages" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Direct messages
+            <small>Always notify for DMs</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-dm" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Sound effects
+            <small>Play sounds for messages and events</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-sound" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Desktop notifications
+            <small>Show browser push notifications</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-desktop" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Email digest
+            <small>Receive a daily summary via email</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-email" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div style="margin-top:24px;">
+          <button class="btn btn--primary" id="save-notif-btn">Save Preferences</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════
+         PANEL 4 · Privacy
+    ════════════════════════════════ -->
+    <section class="settings-section" id="tab-privacy">
+      <h1>Privacy</h1>
+      <p class="section-desc">Control who can see your information and contact you.</p>
+
+      <div class="s-card">
+        <h3>Visibility</h3>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Show online status to others
+            <small>Others can see when you're online</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="priv-online-status" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Allow direct messages from anyone
+            <small>Non-friends can message you</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="priv-dm-anyone" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Show email to workspace members
+            <small>Your email address is visible to colleagues</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="priv-show-email" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            Read receipts
+            <small>Others see when you've read their messages</small>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="priv-read-receipts" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Security section -->
+      <div class="s-card">
+        <h3>Security</h3>
+        <div class="security-info">
+          <div class="si-icon">🛡️</div>
+          <div class="si-text">
+            <strong>Active sessions</strong>
+            <span>You are logged in on 1 device. Logging out all devices will end your current session.</span>
+          </div>
+        </div>
+        <button class="btn btn--secondary" id="logout-all-btn">
+          🔓 Log out all devices
+        </button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Toast notification -->
+<div id="toast">Coming soon 🚀</div>
+
+<script src="/js/auth.js"></script>
+<script>
+  // ── Auth guard ───────────────────────────────────────────
+  const session = requireAuth();
+
+  // ── Helpers ──────────────────────────────────────────────
+  function getInitials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2800);
+  }
+
+  function showInlineAlert(id, type, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'inline-alert ' + type + ' show';
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  // ── Populate topbar ──────────────────────────────────────
+  const displayName = session.displayName || session.username || 'User';
+  const email       = session.email || '';
+
+  document.getElementById('topbar-name').textContent   = displayName;
+  document.getElementById('topbar-avatar').textContent  = getInitials(displayName);
+  document.getElementById('profile-avatar').textContent = getInitials(displayName);
+
+  // ── Populate profile fields ──────────────────────────────
+  document.getElementById('display-name').value = displayName;
+  document.getElementById('email').value         = email;
+  const savedStatus = session.status || 'online';
+  document.getElementById('status-select').value = savedStatus;
+
+  // ── Tab switching ────────────────────────────────────────
+  const tabBtns     = document.querySelectorAll('.tab-item');
+  const tabSections = document.querySelectorAll('.settings-section');
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabSections.forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Logout (topbar) ──────────────────────────────────────
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    if (typeof logout === 'function') logout();
+    else {
+      localStorage.removeItem('pulse_session');
+      sessionStorage.removeItem('pulse_session');
+      window.location.href = '/login.html';
+    }
+  });
+
+  // ── Profile: Change photo (decorative) ──────────────────
+  document.getElementById('change-photo-btn').addEventListener('click', () => {
+    showToast('Avatar upload coming soon 🖼️');
+  });
+
+  // ── Profile: Save ────────────────────────────────────────
+  document.getElementById('save-profile-btn').addEventListener('click', () => {
+    const newName   = document.getElementById('display-name').value.trim();
+    const newStatus = document.getElementById('status-select').value;
+
+    if (!newName) {
+      showInlineAlert('profile-alert', 'error', 'Display name cannot be empty.');
+      return;
+    }
+
+    // Update session in both storages
+    const updatedSession = { ...session, displayName: newName, status: newStatus };
+    const sessionKey = 'pulse_session';
+    if (localStorage.getItem(sessionKey)) {
+      localStorage.setItem(sessionKey, JSON.stringify(updatedSession));
+    }
+    if (sessionStorage.getItem(sessionKey)) {
+      sessionStorage.setItem(sessionKey, JSON.stringify(updatedSession));
+    }
+
+    // Refresh topbar and avatar
+    document.getElementById('topbar-name').textContent    = newName;
+    document.getElementById('topbar-avatar').textContent  = getInitials(newName);
+    document.getElementById('profile-avatar').textContent = getInitials(newName);
+
+    showInlineAlert('profile-alert', 'success', '✅ Profile saved successfully!');
+  });
+
+  // ── Profile: Delete account ──────────────────────────────
+  document.getElementById('delete-account-btn').addEventListener('click', () => {
+    const confirmed = window.confirm(
+      '⚠️ Delete your account?\n\nThis will permanently erase all your data and cannot be undone.'
+    );
+    if (confirmed) {
+      localStorage.removeItem('pulse_session');
+      sessionStorage.removeItem('pulse_session');
+      window.location.href = '/login.html';
+    }
+  });
+
+  // ── Appearance: Theme cards ──────────────────────────────
+  document.querySelectorAll('.theme-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const theme = card.dataset.theme;
+      if (theme === 'light') {
+        document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        return;
+      }
+      showToast('Coming soon 🚀 — ' + card.querySelector('.theme-card-label').textContent + ' theme');
+    });
+  });
+
+  // ── Appearance: Font size radios ─────────────────────────
+  document.querySelectorAll('.font-radio-label').forEach(label => {
+    label.addEventListener('click', () => {
+      const size = label.dataset.size;
+      if (size === 'medium') {
+        document.querySelectorAll('.font-radio-label').forEach(l => l.classList.remove('selected'));
+        label.classList.add('selected');
+        return;
+      }
+      showToast('Coming soon 🚀 — ' + size.charAt(0).toUpperCase() + size.slice(1) + ' font size');
+    });
+  });
+
+  // ── Appearance: Accent color swatches ───────────────────
+  document.querySelectorAll('.swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      showToast('Theme customization coming soon 🎨');
+    });
+  });
+
+  // ── Notifications: Desktop permission ───────────────────
+  document.getElementById('notif-desktop').addEventListener('change', function () {
+    if (this.checked) {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(perm => {
+          if (perm !== 'granted') {
+            this.checked = false;
+            showToast('Desktop notifications were not granted.');
+          }
+        });
+      } else {
+        this.checked = false;
+        showToast('Desktop notifications are not supported in this browser.');
+      }
+    }
+  });
+
+  // ── Notifications: Save preferences ─────────────────────
+  document.getElementById('save-notif-btn').addEventListener('click', () => {
+    const prefs = {
+      newMessages:  document.getElementById('notif-new-messages').checked,
+      dm:           document.getElementById('notif-dm').checked,
+      sound:        document.getElementById('notif-sound').checked,
+      desktop:      document.getElementById('notif-desktop').checked,
+      emailDigest:  document.getElementById('notif-email').checked,
+    };
+    // Persist to localStorage alongside session
+    localStorage.setItem('pulse_notif_prefs', JSON.stringify(prefs));
+    showToast('✅ Notification preferences saved');
+  });
+
+  // ── Privacy: Log out all devices ────────────────────────
+  document.getElementById('logout-all-btn').addEventListener('click', () => {
+    const confirmed = window.confirm(
+      'Log out of all devices?\n\nThis will end your current session too.'
+    );
+    if (confirmed) {
+      localStorage.removeItem('pulse_session');
+      sessionStorage.removeItem('pulse_session');
+      window.location.href = '/login.html';
+    }
+  });
+
+  // ── Load saved notification prefs (if any) ───────────────
+  try {
+    const savedPrefs = JSON.parse(localStorage.getItem('pulse_notif_prefs') || 'null');
+    if (savedPrefs) {
+      if (savedPrefs.newMessages !== undefined)
+        document.getElementById('notif-new-messages').checked = savedPrefs.newMessages;
+      if (savedPrefs.dm !== undefined)
+        document.getElementById('notif-dm').checked = savedPrefs.dm;
+      if (savedPrefs.sound !== undefined)
+        document.getElementById('notif-sound').checked = savedPrefs.sound;
+      if (savedPrefs.desktop !== undefined)
+        document.getElementById('notif-desktop').checked = savedPrefs.desktop;
+      if (savedPrefs.emailDigest !== undefined)
+        document.getElementById('notif-email').checked = savedPrefs.emailDigest;
+    }
+  } catch (e) { /* ignore */ }
+</script>
+</body>
+</html>

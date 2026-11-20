@@ -32,6 +32,12 @@ async function runTests() {
     if (!chatHtml.includes('# general-chat')) throw new Error('chat.html missing channel header');
     console.log('✓ Chat page served successfully');
 
+    const settingsRes = await fetch(`${baseUrl}/settings.html`);
+    if (settingsRes.status !== 200) throw new Error(`Failed to load settings.html: ${settingsRes.status}`);
+    const settingsHtml = await settingsRes.text();
+    if (!settingsHtml.includes('Settings')) throw new Error('settings.html missing Settings title');
+    console.log('✓ Settings page served successfully');
+
     // 2. Test Registration API
     console.log('\n[2] Testing Authentication API...');
     const testUsername = `user_${Date.now()}`;

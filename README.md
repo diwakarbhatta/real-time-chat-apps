@@ -46,7 +46,7 @@ real-time-chat-apps/
 │   ├── login.html            # Account login page (with password show/hide toggle)
 │   ├── register.html         # User registration page (with password show/hide toggle)
 │   ├── chat.html             # Real-time chat workspace interface (room & DMs)
-│   └── design-system.html    # Design system component showcase
+│   └── settings.html         # User settings (profile, appearance, notifications, privacy)
 ├── .env.example              # Environment variables template
 ├── package.json              # NPM dependencies & scripts
 └── test_chat.js              # Automated end-to-end test suite
@@ -87,7 +87,7 @@ Visit the app in your browser:
 - Register: [http://localhost:5000/register.html](http://localhost:5000/register.html)
 - Login: [http://localhost:5000/login.html](http://localhost:5000/login.html)
 - Chat Room: [http://localhost:5000/chat.html](http://localhost:5000/chat.html)
-- Design System: [http://localhost:5000/design-system.html](http://localhost:5000/design-system.html)
+- Settings: [http://localhost:5000/settings.html](http://localhost:5000/settings.html)
 
 ---
 

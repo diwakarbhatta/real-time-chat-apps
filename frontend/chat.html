@@ -6,49 +6,9 @@
     <title>Chat Workspace — Pulse Chat</title>
     <link rel="stylesheet" href="/css/design-system.css" />
     <style>
-      /* Additional helper styling to polish the chat experience */
-      .chat-header-user {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-      }
-      .user-list-item {
-        transition: background 0.15s ease;
-      }
-      .user-list-item:hover {
-        background: var(--color-neutral-100);
-      }
-      .user-info {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        overflow: hidden;
-      }
-      .user-info .username {
-        font-weight: 600;
-        font-size: 0.875rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .user-info .user-status {
-        font-size: 0.75rem;
-        color: var(--color-success);
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      .user-info .user-status::before {
-        content: "";
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--color-success);
-      }
-      .bubble-content {
-        word-break: break-word;
-        line-height: 1.45;
-      }
+      /* ── Critical overrides & component styles not in the design-system ── */
+
+      /* Bubble meta / content */
       .bubble-meta {
         display: flex;
         justify-content: space-between;
@@ -58,166 +18,478 @@
       }
       .bubble-time {
         font-size: 0.7rem;
-        opacity: 0.7;
+        opacity: 0.65;
       }
-      .badge--offline {
-        background: var(--color-error-soft);
-        color: var(--color-error);
+      .bubble-content {
+        word-break: break-word;
+        line-height: 1.5;
       }
-      .badge--offline::before {
-        background: var(--color-error);
-      }
+
+      /* Typing indicator */
       .typing-indicator {
         font-size: 0.8125rem;
-        color: var(--color-neutral-500);
+        color: var(--text-500);
         font-style: italic;
-        padding: 4px 24px;
-        min-height: 24px;
+        padding: 4px 20px;
+        min-height: 22px;
       }
+
+      /* Empty state */
       .empty-state {
         text-align: center;
         margin: auto;
-        color: var(--color-neutral-500);
-        padding: var(--space-8);
+        color: var(--text-500);
+        padding: 48px 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
       }
       .empty-state h3 {
-        color: var(--color-neutral-900);
-        margin-bottom: var(--space-2);
+        color: var(--text-900);
+        font-size: 1.1rem;
+        margin: 0;
+      }
+      .empty-state p {
+        margin: 0;
+        font-size: 0.9rem;
+      }
+
+      /* DM list items */
+      .dm-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background 0.15s ease;
+        list-style: none;
+      }
+      .dm-item:hover {
+        background: rgba(107, 127, 212, 0.1);
+      }
+      .dm-item.active {
+        background: rgba(107, 127, 212, 0.15);
+      }
+      .dm-item .avatar {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        font-size: 0.72rem;
+      }
+      .dm-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+        flex: 1;
+      }
+      .dm-name {
+        font-weight: 600;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-900);
+      }
+      .dm-status {
+        font-size: 0.72rem;
+        color: var(--mint, #7EE8A2);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .dm-status::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--mint, #7EE8A2);
+      }
+      .dm-item.is-me .dm-status {
+        color: var(--text-500);
+      }
+      .dm-item.is-me .dm-status::before {
+        background: var(--text-300, #C4C4D8);
+      }
+
+      /* Room channel item */
+      .channel-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background 0.15s ease;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-700);
+      }
+      .channel-item:hover {
+        background: rgba(107, 127, 212, 0.1);
+      }
+      .channel-item.active {
+        background: rgba(107, 127, 212, 0.15);
+        color: var(--slate-blue, #6B7FD4);
+        font-weight: 600;
+      }
+      .channel-item svg {
+        flex-shrink: 0;
+        opacity: 0.7;
+      }
+
+      /* Search box */
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.55);
+        border-radius: var(--radius-md);
+        padding: 8px 12px;
+        box-shadow: inset 2px 2px 6px rgba(107, 127, 212, 0.1),
+          inset -2px -2px 6px rgba(255, 255, 255, 0.85);
+        margin-bottom: 16px;
+      }
+      .search-box svg {
+        flex-shrink: 0;
+        color: var(--text-500);
+      }
+      .search-box input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.875rem;
+        color: var(--text-900);
+        width: 100%;
+      }
+      .search-box input::placeholder {
+        color: var(--text-300);
+      }
+
+      /* Section labels */
+      .section-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-500);
+        padding: 0 12px;
+        margin: 16px 0 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      /* Composer override */
+      .composer-input-wrap {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        gap: 8px;
+        background: white;
+        border-radius: var(--radius-md);
+        padding: 0 12px;
+        box-shadow: inset 2px 2px 6px rgba(107, 127, 212, 0.1),
+          inset -2px -2px 6px rgba(255, 255, 255, 0.9),
+          0 2px 8px rgba(107, 127, 212, 0.08);
+        min-height: 48px;
+      }
+      .composer-input-wrap input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.9375rem;
+        color: var(--text-900);
+        min-height: 48px;
+      }
+      .composer-input-wrap input::placeholder {
+        color: var(--text-300);
+      }
+      .emoji-btn {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+        flex-shrink: 0;
+        opacity: 0.7;
+        transition: opacity 0.15s;
+      }
+      .emoji-btn:hover {
+        opacity: 1;
+      }
+
+      /* Thread avatar */
+      .th-avatar {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: var(--radius-sm, 14px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1rem;
+        background: linear-gradient(135deg, var(--lavender, #C4B5FD), var(--slate-blue, #6B7FD4));
+        color: white;
+        box-shadow: 3px 3px 10px rgba(107, 127, 212, 0.3);
+        flex-shrink: 0;
+      }
+      .th-avatar.is-room {
+        background: linear-gradient(135deg, var(--mint, #7EE8A2), var(--slate-blue, #6B7FD4));
+      }
+
+      /* Badge offline fix (in dark sidebar) */
+      .nav-rail .badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
       }
     </style>
   </head>
   <body>
     <div class="chat-app">
-      <!-- Top Navigation -->
-      <header class="topbar">
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <a class="brand" href="/index.html">
-            <span class="brand__mark" aria-hidden="true"></span>
-            Pulse Chat
-          </a>
-          <span id="connection-status" class="badge">Connecting...</span>
+
+      <!-- ═══════════════════════════════════════
+           PANE 1 — Nav Rail (72px, dark)
+      ═══════════════════════════════════════ -->
+      <nav class="nav-rail" aria-label="App navigation">
+
+        <!-- Logo mark -->
+        <div class="nav-rail__logo" aria-hidden="true">P</div>
+
+        <!-- Primary nav buttons -->
+        <button class="nav-rail__btn" aria-current="page" title="Rooms">
+          <!-- Home / rooms icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </button>
+
+        <button class="nav-rail__btn" title="Direct Messages">
+          <!-- Chat bubble icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </button>
+
+        <a href="/settings.html" class="nav-rail__btn" title="Settings">
+          <!-- Gear icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33
+                     1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33
+                     l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4
+                     h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06
+                     A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51
+                     1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9
+                     a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </a>
+
+        <!-- Spacer pushes footer to bottom -->
+        <div class="nav-rail__spacer"></div>
+
+        <!-- Footer: avatar + logout -->
+        <div id="my-avatar" class="avatar" title="Your account" style="cursor:default;">?</div>
+
+        <button id="logout-btn" class="nav-rail__btn" title="Log out" style="color:#FF6B8A;">
+          <!-- Door / exit icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </nav>
+
+      <!-- ═══════════════════════════════════════
+           PANE 2 — Channels pane (272px)
+      ═══════════════════════════════════════ -->
+      <aside class="channels-pane" aria-label="Channels and direct messages">
+
+        <!-- Header -->
+        <div class="channels-pane__head">
+          <span style="font-weight:800; font-size:1.05rem; color:var(--text-900);">Pulse</span>
+          <span id="connection-status" class="badge">Connecting…</span>
         </div>
-        <div class="chat-header-user">
-          <div id="my-avatar" class="avatar" style="background: var(--color-primary-soft); color: var(--color-primary);">?</div>
-          <div>
-            <div id="my-username" style="font-weight: 600; font-size: 0.9375rem; line-height: 1.2;">User</div>
-            <div id="my-email" class="caption" style="font-size: 0.75rem;">user@example.com</div>
-          </div>
-          <button id="logout-btn" class="btn btn--secondary" style="margin-left: 12px; height: 36px; padding: 0 14px;">Log out</button>
+
+        <!-- Search -->
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="search" placeholder="Search…" aria-label="Search conversations" />
         </div>
-      </header>
 
-      <!-- Main Chat Body -->
-      <div class="chat-body">
-        <!-- Sidebar: Active Users -->
-        <aside class="sidebar">
-          <div class="sidebar__head">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <h2 style="font-size: 1rem; margin: 0;">Online Members</h2>
-              <span id="user-count-badge" class="badge" style="padding: 2px 8px; font-size: 0.75rem;">0</span>
-            </div>
-            <p class="caption" style="margin: 6px 0 0;">Active in workspace</p>
+        <!-- Rooms section -->
+        <div class="section-label">ROOMS</div>
+        <ul style="list-style:none;margin:0;padding:0 4px;">
+          <li id="room-channel-item" class="channel-item active" role="button" tabindex="0"
+              title="General chat room">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
+              <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
+              <line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
+            </svg>
+            general-chat
+          </li>
+        </ul>
+
+        <!-- Direct messages section -->
+        <div class="section-label">
+          DIRECT MESSAGES
+          <span id="user-count-badge" class="badge" style="font-size:0.68rem;padding:2px 7px;">0</span>
+        </div>
+        <ul id="user-list" style="list-style:none;margin:0;padding:0 4px;overflow-y:auto;flex:1;">
+          <!-- Dynamically populated -->
+        </ul>
+
+        <!-- Premium Upgrade Card -->
+        <div class="premium-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="premium-badge">✦ PRO</span>
+            <span style="font-size:0.7rem; font-weight:700; color:var(--slate-blue);">$4/mo</span>
           </div>
-          <ul id="user-list" class="user-list">
-            <!-- Dynamically populated -->
-          </ul>
-        </aside>
+          <p class="premium-title">Upgrade to Pulse+</p>
+          <p class="premium-desc">Unlock 4K streaming, custom themes &amp; AI summaries.</p>
+          <button type="button" class="btn btn--primary" style="min-height:30px; font-size:0.75rem; padding:0 12px; border-radius:var(--radius-full);" onclick="alert('Pulse Pro upgrade coming soon!')">Upgrade ✨</button>
+        </div>
+      </aside>
 
-        <!-- Chat Thread -->
-        <main class="thread">
-          <div class="thread__head">
-            <div>
-              <button id="back-btn" class="btn btn--secondary" type="button" hidden style="height: 30px; padding: 0 10px; margin-right: 8px; font-size: 0.75rem;">&larr; Back to room</button>
-              <h2 id="thread-title" style="font-size: 1.125rem; margin: 0 0 2px; display: inline;"># general-chat</h2>
-              <p class="caption" id="thread-subtitle" style="margin: 0;">Real-time room powered by WebSockets and SQLite</p>
-            </div>
-            <div>
-              <span class="caption" id="room-active-summary">Room: Active</span>
-            </div>
+      <!-- ═══════════════════════════════════════
+           PANE 3 — Thread pane (flex)
+      ═══════════════════════════════════════ -->
+      <main class="thread-pane" aria-label="Message thread">
+
+        <!-- Thread head -->
+        <div class="thread-head">
+          <div id="thread-avatar" class="th-avatar is-room" aria-hidden="true">#</div>
+
+          <div class="th-info">
+            <h2 id="thread-title"># general-chat</h2>
+            <p id="thread-subtitle">Real-time room powered by WebSockets and SQLite</p>
           </div>
 
-          <!-- Messages Container -->
-          <div id="messages-container" class="messages">
-            <div id="empty-state" class="empty-state">
-              <h3>Welcome to Pulse Chat!</h3>
-              <p>Say hello to everyone in the room to kick off the conversation.</p>
-            </div>
+          <div class="th-actions">
+            <span class="caption" id="room-active-summary"></span>
+            <button id="back-btn" class="btn btn--ghost" type="button" hidden
+                    style="font-size:0.8rem;height:32px;padding:0 12px;">
+              ← Back to room
+            </button>
           </div>
+        </div>
 
-          <!-- Typing indicator -->
-          <div id="typing-box" class="typing-indicator" hidden></div>
+        <!-- Messages area -->
+        <div id="messages-container" class="messages-area">
+          <div id="empty-state" class="empty-state">
+            <h3>Welcome to Pulse Chat!</h3>
+            <p>Say hello to everyone in the room to kick off the conversation.</p>
+          </div>
+        </div>
 
-          <!-- Composer -->
-          <form id="message-form" class="composer">
+        <!-- Typing indicator -->
+        <div id="typing-box" class="typing-indicator" hidden></div>
+
+        <!-- Composer -->
+        <form id="message-form" class="composer">
+          <div class="composer-input-wrap">
+            <button type="button" class="emoji-btn" aria-label="Insert emoji" tabindex="-1">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/>
+                <line x1="15" y1="9" x2="15.01" y2="9"/>
+              </svg>
+            </button>
             <input
               id="message-input"
               type="text"
-              placeholder="Write a message... (Press Enter to send)"
+              placeholder="Write a message… (Enter to send)"
               autocomplete="off"
               maxlength="2000"
               required
             />
-            <button id="send-btn" class="btn btn--primary" type="submit">
-              <span>Send</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-              </svg>
-            </button>
-          </form>
-        </main>
-      </div>
+          </div>
+          <button id="send-btn" class="btn btn--primary composer__send" type="submit">
+            <!-- Paper-plane send icon -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </form>
+      </main>
     </div>
 
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/auth.js"></script>
     <script>
-      // 1. Verify authentication
+      // ─── 1. Auth guard ────────────────────────────────────────────────────
       const session = requireAuth();
       if (!session) {
-        // Will redirect to login.html via requireAuth()
         throw new Error("Unauthorized");
       }
 
       const currentUsername = session.username || session.name || "Guest";
-      const currentEmail = session.email || "";
-      const myUserId = session.id || null;
+      const currentEmail    = session.email || "";
+      const myUserId        = session.id || null;
 
       // Current conversation: { type: "room" } or { type: "dm", userId, username }
       let conversation = { type: "room" };
 
-      // Update header profile display
-      const myAvatarEl = document.getElementById("my-avatar");
-      const myUsernameEl = document.getElementById("my-username");
-      const myEmailEl = document.getElementById("my-email");
-      const statusBadge = document.getElementById("connection-status");
-      const userListEl = document.getElementById("user-list");
-      const userCountBadge = document.getElementById("user-count-badge");
+      // ─── 2. DOM refs ──────────────────────────────────────────────────────
+      const myAvatarEl        = document.getElementById("my-avatar");       // nav-rail footer avatar
+      const myUsernameEl      = document.getElementById("my-username");     // may be null — no longer in layout
+      const statusBadge       = document.getElementById("connection-status");
+      const userListEl        = document.getElementById("user-list");
+      const userCountBadge    = document.getElementById("user-count-badge");
       const messagesContainer = document.getElementById("messages-container");
-      let emptyStateEl = document.getElementById("empty-state");
-      const typingBox = document.getElementById("typing-box");
-      const messageForm = document.getElementById("message-form");
-      const messageInput = document.getElementById("message-input");
-      const logoutBtn = document.getElementById("logout-btn");
+      let   emptyStateEl      = document.getElementById("empty-state");
+      const typingBox         = document.getElementById("typing-box");
+      const messageForm       = document.getElementById("message-form");
+      const messageInput      = document.getElementById("message-input");
+      const logoutBtn         = document.getElementById("logout-btn");
+      const threadAvatar      = document.getElementById("thread-avatar");
+      const roomChannelItem   = document.getElementById("room-channel-item");
+      const threadTitle       = document.getElementById("thread-title");
+      const threadSubtitle    = document.getElementById("thread-subtitle");
+      const backBtn           = document.getElementById("back-btn");
 
+      // Populate nav-rail footer avatar with user initials
       myAvatarEl.textContent = initials(currentUsername);
-      myUsernameEl.textContent = currentUsername;
-      myEmailEl.textContent = currentEmail || "Signed in";
+      myAvatarEl.title       = currentUsername;
 
-      logoutBtn.addEventListener("click", () => {
-        logout();
-      });
+      // ─── 3. Logout ───────────────────────────────────────────────────────
+      logoutBtn.addEventListener("click", () => { logout(); });
 
-      // 2. Initialize Socket.IO connection
+      // ─── 4. Socket.IO ────────────────────────────────────────────────────
       const socket = io({
-        auth: {
-          token: session.token || null,
-        },
+        auth: { token: session.token || null },
       });
 
       const displayedMessageIds = new Set();
 
+      // ─── Helpers ─────────────────────────────────────────────────────────
       function formatTime(isoString) {
         if (!isoString) return "";
         try {
@@ -284,11 +556,7 @@
         scrollToBottom();
       }
 
-      // --- Conversation switching: general room vs direct messages ---
-      const threadTitle = document.getElementById("thread-title");
-      const threadSubtitle = document.getElementById("thread-subtitle");
-      const backBtn = document.getElementById("back-btn");
-
+      // ─── Conversation rendering helpers ──────────────────────────────────
       function renderHistory(messages, emptyTitle, emptySubtitle) {
         displayedMessageIds.clear();
         messagesContainer.innerHTML = "";
@@ -296,12 +564,37 @@
         const empty = document.createElement("div");
         empty.id = "empty-state";
         empty.className = "empty-state";
-        const emptyH3 = document.createElement("h3");
-        emptyH3.textContent = emptyTitle;
-        const emptyP = document.createElement("p");
-        emptyP.textContent = emptySubtitle;
-        empty.appendChild(emptyH3);
-        empty.appendChild(emptyP);
+        empty.innerHTML = `
+          <div class="character-avatar-3d" style="margin-bottom:8px;">🎧</div>
+          <h3 style="font-size:1.25rem; font-weight:800; color:var(--text-900); margin:0;">${emptyTitle}</h3>
+          <p style="color:var(--text-500); font-size:0.88rem; max-width:380px; margin:0 0 16px;">${emptySubtitle}</p>
+          
+          <div class="stats-grid" style="max-width:440px; margin-bottom:16px;">
+            <div class="stat-clay-card">
+              <span class="stat-icon">💬</span>
+              <span class="stat-val">${messages.length || '0'}</span>
+              <span class="stat-lbl">Messages</span>
+            </div>
+            <div class="stat-clay-card">
+              <span class="stat-icon">👥</span>
+              <span class="stat-val">Live</span>
+              <span class="stat-lbl">Active Room</span>
+            </div>
+            <div class="stat-clay-card">
+              <span class="stat-icon">⚡</span>
+              <span class="stat-val">&lt;5ms</span>
+              <span class="stat-lbl">Latency</span>
+            </div>
+          </div>
+
+          <div class="vibe-card" style="max-width:440px; width:100%; text-align:left;">
+            <div class="vibe-icon">✨</div>
+            <div class="vibe-info">
+              <h4>Daily Vibe · High Energy</h4>
+              <p>Team flow is active today — start a conversation to connect!</p>
+            </div>
+          </div>
+        `;
         messagesContainer.appendChild(empty);
         emptyStateEl = empty;
 
@@ -318,11 +611,30 @@
         return data;
       }
 
+      // ─── Active-state helpers for sidebar ────────────────────────────────
+      function setRoomActive() {
+        roomChannelItem.classList.add("active");
+        document.querySelectorAll(".dm-item").forEach(el => el.classList.remove("active"));
+        threadAvatar.textContent = "#";
+        threadAvatar.className = "th-avatar is-room";
+      }
+
+      function setDMActive(userId, username) {
+        roomChannelItem.classList.remove("active");
+        document.querySelectorAll(".dm-item").forEach(el => {
+          el.classList.toggle("active", el.dataset.userId === String(userId));
+        });
+        threadAvatar.textContent = initials(username);
+        threadAvatar.className = "th-avatar";
+      }
+
+      // ─── Load room conversation ───────────────────────────────────────────
       async function loadRoomConversation() {
         conversation = { type: "room" };
         threadTitle.textContent = "# general-chat";
         threadSubtitle.textContent = "Real-time room powered by WebSockets and SQLite";
         backBtn.hidden = true;
+        setRoomActive();
         renderHistory(
           [],
           "Welcome to Pulse Chat!",
@@ -340,6 +652,7 @@
         }
       }
 
+      // ─── Open DM ─────────────────────────────────────────────────────────
       async function openDM(userId, username) {
         if (!userId) {
           appendSystemMessage("Direct messaging unavailable for this member.");
@@ -351,6 +664,7 @@
         threadTitle.textContent = `@ ${username}`;
         threadSubtitle.textContent = `Private conversation with ${username} — only you two can see these messages`;
         backBtn.hidden = false;
+        setDMActive(userId, username);
         renderHistory(
           [],
           "No messages yet",
@@ -368,16 +682,20 @@
         }
       }
 
-      backBtn.addEventListener("click", () => {
-        loadRoomConversation();
+      // ─── Room channel item click ──────────────────────────────────────────
+      roomChannelItem.addEventListener("click", () => loadRoomConversation());
+      roomChannelItem.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); loadRoomConversation(); }
       });
 
-      // Socket lifecycle events
+      // ─── Back button ─────────────────────────────────────────────────────
+      backBtn.addEventListener("click", () => { loadRoomConversation(); });
+
+      // ─── Socket lifecycle ─────────────────────────────────────────────────
       socket.on("connect", () => {
         statusBadge.className = "badge";
         statusBadge.textContent = "Live connected";
 
-        // Join room with verified session token
         socket.emit("join", {
           token: session.token,
           status: "Online",
@@ -394,13 +712,13 @@
         statusBadge.textContent = "Connection error";
       });
 
-      socket.on("auth-error", (data) => {
+      socket.on("auth-error", () => {
         statusBadge.className = "badge badge--offline";
         statusBadge.textContent = "Auth required";
         logout();
       });
 
-      // Receive full chat history upon joining (general room)
+      // ─── Room history (on initial join) ──────────────────────────────────
       socket.on("history", (history = []) => {
         if (conversation.type !== "room") return;
         renderHistory(
@@ -410,13 +728,13 @@
         );
       });
 
-      // Receive incoming chat messages
+      // ─── Incoming room message ────────────────────────────────────────────
       socket.on("chat-message", (msg) => {
         if (conversation.type !== "room") return;
         appendChatMessage(msg);
       });
 
-      // Receive incoming private messages
+      // ─── Incoming direct message ──────────────────────────────────────────
       socket.on("direct-message", (msg) => {
         const inThisConversation =
           conversation.type === "dm" &&
@@ -424,20 +742,19 @@
         if (inThisConversation) {
           appendChatMessage(msg);
         } else if (msg.userId !== myUserId) {
-          // Arrived while viewing another conversation — surface a notice
           appendSystemMessage(
             `${msg.username} sent you a private message — click their name in the member list to reply.`
           );
         }
       });
 
-      // Receive system messages (e.g. user joined / left)
+      // ─── System messages ──────────────────────────────────────────────────
       socket.on("system", (data) => {
         const text = typeof data === "string" ? data : data.text;
         appendSystemMessage(text);
       });
 
-      // Update online members list
+      // ─── Online members list ──────────────────────────────────────────────
       socket.on("users", (users = []) => {
         userListEl.innerHTML = "";
         userCountBadge.textContent = users.length;
@@ -445,25 +762,27 @@
         users.forEach((u) => {
           const isCurrentUser = u.username.toLowerCase() === currentUsername.toLowerCase();
           const li = document.createElement("li");
-          li.className = `user-list-item ${isCurrentUser ? "is-active" : ""}`;
+          li.className = `dm-item${isCurrentUser ? " is-me" : ""}`;
+          if (u.userId) li.dataset.userId = String(u.userId);
 
+          // Avatar (32px)
           const avatar = document.createElement("div");
           avatar.className = "avatar";
           avatar.textContent = initials(u.username);
           if (isCurrentUser) {
-            avatar.style.background = "var(--color-primary-soft)";
-            avatar.style.color = "var(--color-primary)";
+            avatar.style.background = "linear-gradient(135deg, var(--lavender, #C4B5FD), var(--slate-blue, #6B7FD4))";
           }
 
+          // Info block
           const info = document.createElement("div");
-          info.className = "user-info";
+          info.className = "dm-info";
 
           const name = document.createElement("span");
-          name.className = "username";
+          name.className = "dm-name";
           name.textContent = isCurrentUser ? `${u.username} (You)` : u.username;
 
           const status = document.createElement("span");
-          status.className = "user-status";
+          status.className = "dm-status";
           status.textContent = u.status || "Online";
 
           info.appendChild(name);
@@ -472,9 +791,8 @@
           li.appendChild(avatar);
           li.appendChild(info);
 
-          // Clicking a member opens a private 1-to-1 conversation
+          // Clicking non-self opens a DM
           if (!isCurrentUser && u.userId) {
-            li.style.cursor = "pointer";
             li.title = `Message ${u.username} privately`;
             li.addEventListener("click", () => openDM(u.userId, u.username));
           }
@@ -483,11 +801,10 @@
         });
       });
 
-      // Typing indicator handling
+      // ─── Typing indicator (receive) ───────────────────────────────────────
       let typingTimeout = null;
       socket.on("typing", ({ username, isTyping }) => {
         const isSelf = username.toLowerCase() === currentUsername.toLowerCase();
-        // In a DM view, only show typing from the person you're chatting with
         const relevant =
           conversation.type === "room" ||
           (conversation.type === "dm" &&
@@ -497,7 +814,7 @@
           typingBox.textContent = "";
         } else {
           typingBox.hidden = false;
-          typingBox.textContent = `${username} is typing...`;
+          typingBox.textContent = `${username} is typing…`;
           clearTimeout(typingTimeout);
           typingTimeout = setTimeout(() => {
             typingBox.hidden = true;
@@ -506,6 +823,7 @@
         }
       });
 
+      // ─── Typing indicator (emit) ──────────────────────────────────────────
       let isTypingEmit = false;
       let emitStopTypingTimer = null;
 
@@ -521,7 +839,7 @@
         }, 1200);
       });
 
-      // Submit message
+      // ─── Send message ─────────────────────────────────────────────────────
       messageForm.addEventListener("submit", (e) => {
         e.preventDefault();
         const text = messageInput.value.trim();
@@ -530,13 +848,11 @@
         const sendBtn = document.getElementById("send-btn");
         if (sendBtn) sendBtn.disabled = true;
 
-        // Stop typing state
         isTypingEmit = false;
         clearTimeout(emitStopTypingTimer);
         socket.emit("typing", false);
 
         if (conversation.type === "dm") {
-          // Private message to the user currently being viewed
           socket.emit("direct-message", { to: conversation.userId, text }, (ack) => {
             if (sendBtn) sendBtn.disabled = false;
             if (ack && ack.success) {
