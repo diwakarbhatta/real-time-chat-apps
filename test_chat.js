@@ -128,6 +128,22 @@ async function runTests() {
     }
     console.log('✓ /api/auth/me verified authenticated user');
 
+    // 5b. Test PATCH /api/auth/me (Profile update)
+    const updatedStatus = "busy";
+    const patchRes = await fetch(`${baseUrl}/api/auth/me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${loginData.token}`,
+      },
+      body: JSON.stringify({ status: updatedStatus }),
+    });
+    const patchData = await patchRes.json();
+    if (patchRes.status !== 200 || patchData.user.status !== updatedStatus || !patchData.token) {
+      throw new Error(`PATCH /api/auth/me failed: ${JSON.stringify(patchData)}`);
+    }
+    console.log('✓ PATCH /api/auth/me updated profile and re-issued token');
+
     // 6. Test Socket.IO Real-time messaging
     console.log('\n[3] Testing Real-Time WebSockets...');
 

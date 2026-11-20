@@ -133,6 +133,65 @@ router.get('/me', requireAuth, (req, res) => {
   });
 });
 
+// PATCH /api/auth/me
+router.patch('/me', requireAuth, (req, res) => {
+  const userId = req.user.id || req.user.sub;
+  const user = User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const { username, name, email, status } = req.body || {};
+  const chosenName = (username !== undefined || name !== undefined) ? (username || name || '').trim() : undefined;
+  const chosenEmail = email !== undefined ? (email ? email.trim().toLowerCase() : null) : undefined;
+  const chosenStatus = status !== undefined ? (typeof status === 'string' ? status.trim() : 'Online') : undefined;
+
+  if (chosenName !== undefined) {
+    if (chosenName.length < 2 || chosenName.length > 30) {
+      return res.status(400).json({ error: 'Username must be between 2 and 30 characters' });
+    }
+    if (!USERNAME_RE.test(chosenName)) {
+      return res.status(400).json({ error: 'Username can only contain letters, numbers, spaces, and underscores' });
+    }
+    const existing = User.findByUsername(chosenName);
+    if (existing && existing.id !== user.id) {
+      return res.status(409).json({ error: 'Username is already taken' });
+    }
+  }
+
+  if (chosenEmail !== undefined && chosenEmail) {
+    const existing = User.findByEmail(chosenEmail);
+    if (existing && existing.id !== user.id) {
+      return res.status(409).json({ error: 'Email is already registered by another account' });
+    }
+  }
+
+  try {
+    const updated = User.update(userId, {
+      username: chosenName,
+      email: chosenEmail,
+      status: chosenStatus,
+    });
+    const token = signToken(updated);
+    res.json({
+      token,
+      user: {
+        id: updated.id,
+        username: updated.username,
+        email: updated.email,
+        status: updated.status,
+      },
+    });
+  } catch (err) {
+    const errMsg = err && err.message ? err.message : '';
+    if (errMsg.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'Username or email already in use' });
+    }
+    console.error('Update profile error:', err);
+    res.status(500).json({ error: 'Could not update profile' });
+  }
+});
+
 // GET /api/auth/users
 router.get('/users', requireAuth, (req, res) => {
   const users = User.getAll();

@@ -1,27 +1,36 @@
-const STORAGE_USERS = "pulse.users";
 const STORAGE_SESSION = "pulse.session";
 
-function getUsers() {
+function isTokenExpired(token) {
+  if (!token || typeof token !== "string") return true;
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_USERS) || "[]");
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.exp ? Date.now() >= payload.exp * 1000 : false;
   } catch {
-    return [];
+    return true;
   }
-}
-
-function saveUsers(users) {
-  localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
 }
 
 function getSession() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_SESSION) || "null");
+    const session = JSON.parse(localStorage.getItem(STORAGE_SESSION) || "null");
+    if (!session) return null;
+    if (session.token && isTokenExpired(session.token)) {
+      logout();
+      return null;
+    }
+    return session;
   } catch {
     return null;
   }
 }
 
 function setSession(sessionData) {
+  if (!sessionData) {
+    localStorage.removeItem(STORAGE_SESSION);
+    return;
+  }
   localStorage.setItem(STORAGE_SESSION, JSON.stringify(sessionData));
 }
 
@@ -32,8 +41,8 @@ function getToken() {
 
 function requireAuth() {
   const session = getSession();
-  if (!session || (!session.username && !session.name)) {
-    window.location.href = "/login.html";
+  if (!session || (!session.username && !session.name) || isTokenExpired(session.token)) {
+    logout();
     return null;
   }
   return session;
@@ -41,6 +50,8 @@ function requireAuth() {
 
 function logout() {
   localStorage.removeItem(STORAGE_SESSION);
+  sessionStorage.removeItem(STORAGE_SESSION);
+  sessionStorage.removeItem("pulse_active_conv");
   window.location.href = "/login.html";
 }
 
@@ -74,6 +85,14 @@ function initials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+async function safeJson(res) {
+  try {
+    return await res.json();
+  } catch {
+    return { error: `Server error (${res.status} ${res.statusText || ""})`.trim() };
+  }
+}
+
 // Backend API helpers
 async function apiRegister({ username, email, password }) {
   const res = await fetch("/api/auth/register", {
@@ -81,7 +100,7 @@ async function apiRegister({ username, email, password }) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, email, password }),
   });
-  const data = await res.json();
+  const data = await safeJson(res);
   if (!res.ok) {
     throw new Error(data.error || "Registration failed");
   }
@@ -94,7 +113,7 @@ async function apiLogin({ identifier, password }) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identifier, password }),
   });
-  const data = await res.json();
+  const data = await safeJson(res);
   if (!res.ok) {
     throw new Error(data.error || "Login failed");
   }
@@ -107,7 +126,25 @@ async function apiMe() {
   const res = await fetch("/api/auth/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
-  const data = await res.json();
+  const data = await safeJson(res);
   if (!res.ok) throw new Error(data.error || "Authentication check failed");
   return data.user;
+}
+
+async function apiUpdateProfile({ username, email, status }) {
+  const token = getToken();
+  if (!token) throw new Error("No active token");
+  const res = await fetch("/api/auth/me", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ username, email, status }),
+  });
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(data.error || "Profile update failed");
+  }
+  return data;
 }

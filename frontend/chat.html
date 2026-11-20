@@ -152,6 +152,11 @@
         box-shadow: inset 2px 2px 6px rgba(107, 127, 212, 0.1),
           inset -2px -2px 6px rgba(255, 255, 255, 0.85);
         margin-bottom: 16px;
+        transition: box-shadow 0.2s;
+      }
+      .search-box:focus-within {
+        box-shadow: inset 2px 2px 6px rgba(107, 127, 212, 0.15),
+          0 0 0 3px rgba(107, 127, 212, 0.25);
       }
       .search-box svg {
         flex-shrink: 0;
@@ -196,6 +201,11 @@
           inset -2px -2px 6px rgba(255, 255, 255, 0.9),
           0 2px 8px rgba(107, 127, 212, 0.08);
         min-height: 48px;
+        transition: box-shadow 0.2s;
+      }
+      .composer-input-wrap:focus-within {
+        box-shadow: inset 2px 2px 6px rgba(107, 127, 212, 0.15),
+          0 0 0 3px rgba(107, 127, 212, 0.25);
       }
       .composer-input-wrap input {
         flex: 1;
@@ -273,7 +283,7 @@
           </svg>
         </button>
 
-        <button class="nav-rail__btn" title="Direct Messages">
+        <button id="nav-btn-dms" class="nav-rail__btn" title="Direct Messages">
           <!-- Chat bubble icon -->
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -334,7 +344,7 @@
                aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input type="search" placeholder="Search…" aria-label="Search conversations" />
+          <input id="conversation-search" type="search" placeholder="Search…" aria-label="Search conversations" />
         </div>
 
         <!-- Rooms section -->
@@ -397,12 +407,17 @@
         </div>
 
         <!-- Messages area -->
-        <div id="messages-container" class="messages-area">
+        <div id="messages-container" class="messages-area" role="log" aria-live="polite" aria-relevant="additions text">
           <div id="empty-state" class="empty-state">
             <h3>Welcome to Pulse Chat!</h3>
             <p>Say hello to everyone in the room to kick off the conversation.</p>
           </div>
         </div>
+
+        <!-- Scroll to bottom pill button -->
+        <button id="scroll-bottom-btn" class="scroll-bottom-btn" type="button" hidden aria-label="Scroll to new messages">
+          New messages ↓
+        </button>
 
         <!-- Typing indicator -->
         <div id="typing-box" class="typing-indicator" hidden></div>
@@ -427,7 +442,7 @@
               required
             />
           </div>
-          <button id="send-btn" class="btn btn--primary composer__send" type="submit">
+          <button id="send-btn" class="btn btn--primary composer__send" type="submit" aria-label="Send message">
             <!-- Paper-plane send icon -->
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -444,6 +459,27 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/auth.js"></script>
     <script>
+      // ─── 0. Apply theme & font preferences ────────────────────────────────
+      try {
+        const savedTheme = localStorage.getItem('pulse_theme') || 'light';
+        const effectiveTheme = savedTheme === 'system'
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : savedTheme;
+        document.documentElement.setAttribute('data-theme', effectiveTheme);
+
+        const savedFontSize = localStorage.getItem('pulse_font_size');
+        if (savedFontSize) {
+          document.documentElement.setAttribute('data-font-size', savedFontSize);
+        }
+
+        const savedAccent = localStorage.getItem('pulse_accent_color');
+        if (savedAccent) {
+          document.documentElement.style.setProperty('--slate-blue', savedAccent);
+        }
+      } catch (e) {
+        console.warn('Could not initialize appearance settings', e);
+      }
+
       // ─── 1. Auth guard ────────────────────────────────────────────────────
       const session = requireAuth();
       if (!session) {
@@ -456,15 +492,16 @@
 
       // Current conversation: { type: "room" } or { type: "dm", userId, username }
       let conversation = { type: "room" };
+      const unreadMap = new Map(); // peerId -> count
 
       // ─── 2. DOM refs ──────────────────────────────────────────────────────
-      const myAvatarEl        = document.getElementById("my-avatar");       // nav-rail footer avatar
-      const myUsernameEl      = document.getElementById("my-username");     // may be null — no longer in layout
+      const myAvatarEl        = document.getElementById("my-avatar");
       const statusBadge       = document.getElementById("connection-status");
       const userListEl        = document.getElementById("user-list");
       const userCountBadge    = document.getElementById("user-count-badge");
       const messagesContainer = document.getElementById("messages-container");
       let   emptyStateEl      = document.getElementById("empty-state");
+      const scrollBottomBtn   = document.getElementById("scroll-bottom-btn");
       const typingBox         = document.getElementById("typing-box");
       const messageForm       = document.getElementById("message-form");
       const messageInput      = document.getElementById("message-input");
@@ -474,10 +511,31 @@
       const threadTitle       = document.getElementById("thread-title");
       const threadSubtitle    = document.getElementById("thread-subtitle");
       const backBtn           = document.getElementById("back-btn");
+      const navBtnDms         = document.getElementById("nav-btn-dms");
+      const channelsPane      = document.querySelector(".channels-pane");
+      const searchInput       = document.getElementById("conversation-search");
 
       // Populate nav-rail footer avatar with user initials
       myAvatarEl.textContent = initials(currentUsername);
       myAvatarEl.title       = currentUsername;
+
+      // Mobile drawer toggle
+      if (navBtnDms && channelsPane) {
+        navBtnDms.addEventListener("click", () => {
+          channelsPane.classList.toggle("open");
+        });
+      }
+
+      // Live DM search filtering
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          const q = e.target.value.toLowerCase().trim();
+          document.querySelectorAll("#user-list .dm-item").forEach(item => {
+            const name = (item.dataset.username || "").toLowerCase();
+            item.style.display = (!q || name.includes(q)) ? "flex" : "none";
+          });
+        });
+      }
 
       // ─── 3. Logout ───────────────────────────────────────────────────────
       logoutBtn.addEventListener("click", () => { logout(); });
@@ -488,8 +546,147 @@
       });
 
       const displayedMessageIds = new Set();
+      let lastMessageDay = null;
 
-      // ─── Helpers ─────────────────────────────────────────────────────────
+      // ─── Notifications & Audio ───────────────────────────────────────────
+      function getNotifPrefs() {
+        try {
+          return JSON.parse(localStorage.getItem('pulse_notif_prefs')) || {
+            newMessages: true,
+            dm: true,
+            sound: true,
+            desktop: false
+          };
+        } catch {
+          return { newMessages: true, dm: true, sound: true, desktop: false };
+        }
+      }
+
+      function playNotificationSound() {
+        try {
+          const prefs = getNotifPrefs();
+          if (!prefs.sound) return;
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContext) return;
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } catch {}
+      }
+
+      function showDesktopNotification(title, body) {
+        try {
+          const prefs = getNotifPrefs();
+          if (!prefs.desktop || !("Notification" in window) || Notification.permission !== "granted") return;
+          new Notification(title, { body, icon: "/favicon.ico" });
+        } catch {}
+      }
+
+      // ─── Message Normalization ────────────────────────────────────────────
+      function normalizeMessage(raw) {
+        if (!raw) return null;
+        const userId = raw.userId ?? raw.user_id ?? null;
+        const recipientId = raw.recipientId ?? raw.recipient_id ?? null;
+        const time = raw.time ?? raw.created_at ?? new Date().toISOString();
+        const username = raw.username || "Anonymous";
+        const text = raw.text || "";
+        const id = raw.id || `${userId || 'u'}-${time}-${text.slice(0, 10)}`;
+        return {
+          ...raw,
+          id,
+          userId,
+          recipientId,
+          time,
+          username,
+          text
+        };
+      }
+
+      // ─── Smart Scrolling ──────────────────────────────────────────────────
+      let userScrolledUp = false;
+      messagesContainer.addEventListener("scroll", () => {
+        const fromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+        userScrolledUp = fromBottom > 100;
+        if (!userScrolledUp && scrollBottomBtn) {
+          scrollBottomBtn.hidden = true;
+        }
+      });
+
+      if (scrollBottomBtn) {
+        scrollBottomBtn.addEventListener("click", () => {
+          scrollToBottom(true);
+        });
+      }
+
+      function scrollToBottom(force = false) {
+        if (force || !userScrolledUp) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          if (scrollBottomBtn) scrollBottomBtn.hidden = true;
+          userScrolledUp = false;
+        } else if (scrollBottomBtn) {
+          scrollBottomBtn.hidden = false;
+        }
+      }
+
+      // ─── Day Separators ───────────────────────────────────────────────────
+      function getDayString(isoString) {
+        if (!isoString) return "";
+        try {
+          let str = isoString;
+          if (typeof str === "string" && !str.endsWith("Z") && !str.includes("+")) {
+            str = str.replace(" ", "T") + "Z";
+          }
+          return new Date(str).toDateString();
+        } catch {
+          return "";
+        }
+      }
+
+      function formatDayDisplay(isoString) {
+        try {
+          let str = isoString;
+          if (typeof str === "string" && !str.endsWith("Z") && !str.includes("+")) {
+            str = str.replace(" ", "T") + "Z";
+          }
+          const date = new Date(str);
+          const today = new Date();
+          const yesterday = new Date();
+          yesterday.setDate(today.getDate() - 1);
+          if (date.toDateString() === today.toDateString()) return "Today";
+          if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+          return date.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined
+          });
+        } catch {
+          return "";
+        }
+      }
+
+      function maybeAppendDaySeparator(isoString) {
+        const day = getDayString(isoString);
+        if (!day || day === lastMessageDay) return;
+        lastMessageDay = day;
+        const sep = document.createElement("div");
+        sep.className = "day-separator";
+        sep.setAttribute("role", "separator");
+        const span = document.createElement("span");
+        span.textContent = formatDayDisplay(isoString);
+        sep.appendChild(span);
+        messagesContainer.appendChild(sep);
+      }
+
+      // ─── Time Formatting ──────────────────────────────────────────────────
       function formatTime(isoString) {
         if (!isoString) return "";
         try {
@@ -504,10 +701,6 @@
         }
       }
 
-      function scrollToBottom() {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
-
       function appendSystemMessage(text) {
         if (emptyStateEl) emptyStateEl.style.display = "none";
         const div = document.createElement("div");
@@ -517,15 +710,20 @@
         scrollToBottom();
       }
 
-      function appendChatMessage(msg) {
-        if (msg && msg.id) {
+      function appendChatMessage(rawMsg, isHistorical = false) {
+        const msg = normalizeMessage(rawMsg);
+        if (!msg) return;
+
+        if (msg.id) {
           if (displayedMessageIds.has(msg.id)) return;
           displayedMessageIds.add(msg.id);
         }
         if (emptyStateEl) emptyStateEl.style.display = "none";
 
+        maybeAppendDaySeparator(msg.time);
+
         const isMine =
-          (myUserId && msg.userId && msg.userId === myUserId) ||
+          (myUserId && msg.userId && String(msg.userId) === String(myUserId)) ||
           (msg.username && msg.username.toLowerCase() === currentUsername.toLowerCase()) ||
           (msg.from && msg.from === socket.id);
 
@@ -540,7 +738,7 @@
 
         const time = document.createElement("span");
         time.className = "bubble-time";
-        time.textContent = formatTime(msg.time || msg.created_at);
+        time.textContent = formatTime(msg.time);
 
         meta.appendChild(sender);
         meta.appendChild(time);
@@ -553,12 +751,13 @@
         bubble.appendChild(body);
 
         messagesContainer.appendChild(bubble);
-        scrollToBottom();
+        scrollToBottom(isHistorical);
       }
 
       // ─── Conversation rendering helpers ──────────────────────────────────
       function renderHistory(messages, emptyTitle, emptySubtitle) {
         displayedMessageIds.clear();
+        lastMessageDay = null;
         messagesContainer.innerHTML = "";
 
         const empty = document.createElement("div");
@@ -598,15 +797,15 @@
         messagesContainer.appendChild(empty);
         emptyStateEl = empty;
 
-        messages.forEach((msg) => appendChatMessage(msg));
-        scrollToBottom();
+        messages.forEach((msg) => appendChatMessage(msg, true));
+        scrollToBottom(true);
       }
 
       async function apiGetMessages(query) {
         const res = await fetch(`/api/messages${query || ""}`, {
           headers: { Authorization: `Bearer ${session.token}` },
         });
-        const data = await res.json();
+        const data = await (window.safeJson ? safeJson(res) : res.json());
         if (!res.ok) throw new Error(data.error || "Could not load messages");
         return data;
       }
@@ -628,9 +827,28 @@
         threadAvatar.className = "th-avatar";
       }
 
+      function updateUnreadBadges() {
+        document.querySelectorAll("#user-list .dm-item").forEach(li => {
+          const uId = li.dataset.userId;
+          let badge = li.querySelector(".unread-badge");
+          const count = unreadMap.get(Number(uId)) || unreadMap.get(String(uId)) || 0;
+          if (count > 0) {
+            if (!badge) {
+              badge = document.createElement("span");
+              badge.className = "unread-badge";
+              li.appendChild(badge);
+            }
+            badge.textContent = count;
+          } else if (badge) {
+            badge.remove();
+          }
+        });
+      }
+
       // ─── Load room conversation ───────────────────────────────────────────
       async function loadRoomConversation() {
         conversation = { type: "room" };
+        sessionStorage.setItem("pulse_active_conv", JSON.stringify({ type: "room" }));
         threadTitle.textContent = "# general-chat";
         threadSubtitle.textContent = "Real-time room powered by WebSockets and SQLite";
         backBtn.hidden = true;
@@ -658,9 +876,14 @@
           appendSystemMessage("Direct messaging unavailable for this member.");
           return;
         }
-        if (conversation.type === "dm" && conversation.userId === userId) return;
+        if (conversation.type === "dm" && String(conversation.userId) === String(userId)) return;
 
         conversation = { type: "dm", userId, username };
+        unreadMap.delete(Number(userId));
+        unreadMap.delete(String(userId));
+        updateUnreadBadges();
+        sessionStorage.setItem("pulse_active_conv", JSON.stringify({ type: "dm", userId, username }));
+
         threadTitle.textContent = `@ ${username}`;
         threadSubtitle.textContent = `Private conversation with ${username} — only you two can see these messages`;
         backBtn.hidden = false;
@@ -683,9 +906,16 @@
       }
 
       // ─── Room channel item click ──────────────────────────────────────────
-      roomChannelItem.addEventListener("click", () => loadRoomConversation());
+      roomChannelItem.addEventListener("click", () => {
+        loadRoomConversation();
+        if (channelsPane) channelsPane.classList.remove("open");
+      });
       roomChannelItem.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); loadRoomConversation(); }
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          loadRoomConversation();
+          if (channelsPane) channelsPane.classList.remove("open");
+        }
       });
 
       // ─── Back button ─────────────────────────────────────────────────────
@@ -729,19 +959,47 @@
       });
 
       // ─── Incoming room message ────────────────────────────────────────────
-      socket.on("chat-message", (msg) => {
-        if (conversation.type !== "room") return;
-        appendChatMessage(msg);
+      socket.on("chat-message", (rawMsg) => {
+        const msg = normalizeMessage(rawMsg);
+        if (conversation.type === "room") {
+          appendChatMessage(msg);
+        }
+        const isMine =
+          (myUserId && msg.userId && String(msg.userId) === String(myUserId)) ||
+          (msg.username && msg.username.toLowerCase() === currentUsername.toLowerCase());
+        if (!isMine) {
+          playNotificationSound();
+          if (document.hidden) {
+            showDesktopNotification("Pulse Chat", `${msg.username}: ${msg.text}`);
+          }
+        }
       });
 
       // ─── Incoming direct message ──────────────────────────────────────────
-      socket.on("direct-message", (msg) => {
+      socket.on("direct-message", (rawMsg) => {
+        const msg = normalizeMessage(rawMsg);
+        const isMine =
+          (myUserId && msg.userId && String(msg.userId) === String(myUserId)) ||
+          (msg.username && msg.username.toLowerCase() === currentUsername.toLowerCase());
+
         const inThisConversation =
           conversation.type === "dm" &&
-          (msg.userId === conversation.userId || msg.recipientId === conversation.userId);
+          (String(msg.userId) === String(conversation.userId) || String(msg.recipientId) === String(conversation.userId));
+
         if (inThisConversation) {
           appendChatMessage(msg);
-        } else if (msg.userId !== myUserId) {
+          if (!isMine) {
+            playNotificationSound();
+            if (document.hidden) {
+              showDesktopNotification(`Message from ${msg.username}`, msg.text);
+            }
+          }
+        } else if (!isMine) {
+          const peerId = msg.userId;
+          unreadMap.set(peerId, (unreadMap.get(peerId) || 0) + 1);
+          updateUnreadBadges();
+          playNotificationSound();
+          showDesktopNotification(`Message from ${msg.username}`, msg.text);
           appendSystemMessage(
             `${msg.username} sent you a private message — click their name in the member list to reply.`
           );
@@ -764,6 +1022,13 @@
           const li = document.createElement("li");
           li.className = `dm-item${isCurrentUser ? " is-me" : ""}`;
           if (u.userId) li.dataset.userId = String(u.userId);
+          li.dataset.username = u.username;
+          li.setAttribute("role", "button");
+          li.setAttribute("tabindex", "0");
+
+          if (conversation.type === "dm" && String(conversation.userId) === String(u.userId)) {
+            li.classList.add("active");
+          }
 
           // Avatar (32px)
           const avatar = document.createElement("div");
@@ -791,14 +1056,38 @@
           li.appendChild(avatar);
           li.appendChild(info);
 
-          // Clicking non-self opens a DM
+          // Unread badge
+          const unreadCount = unreadMap.get(Number(u.userId)) || unreadMap.get(String(u.userId)) || 0;
+          if (unreadCount > 0) {
+            const badge = document.createElement("span");
+            badge.className = "unread-badge";
+            badge.textContent = unreadCount;
+            li.appendChild(badge);
+          }
+
+          // Clicking opens DM
           if (!isCurrentUser && u.userId) {
             li.title = `Message ${u.username} privately`;
-            li.addEventListener("click", () => openDM(u.userId, u.username));
+            const clickHandler = () => {
+              openDM(u.userId, u.username);
+              if (channelsPane) channelsPane.classList.remove("open");
+            };
+            li.addEventListener("click", clickHandler);
+            li.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                clickHandler();
+              }
+            });
           }
 
           userListEl.appendChild(li);
         });
+
+        // Apply active search filter if present
+        if (searchInput && searchInput.value) {
+          searchInput.dispatchEvent(new Event("input"));
+        }
       });
 
       // ─── Typing indicator (receive) ───────────────────────────────────────
@@ -808,7 +1097,7 @@
         const relevant =
           conversation.type === "room" ||
           (conversation.type === "dm" &&
-            username.toLowerCase() === conversation.username.toLowerCase());
+            username.toLowerCase() === (conversation.username || "").toLowerCase());
         if (!isTyping || isSelf || !relevant) {
           typingBox.hidden = true;
           typingBox.textContent = "";
@@ -874,6 +1163,23 @@
           });
         }
       });
+
+      // ─── Initial conversation restoration ────────────────────────────────
+      try {
+        const savedConvStr = sessionStorage.getItem("pulse_active_conv");
+        if (savedConvStr) {
+          const savedConv = JSON.parse(savedConvStr);
+          if (savedConv && savedConv.type === "dm" && savedConv.userId) {
+            openDM(savedConv.userId, savedConv.username || "User");
+          } else {
+            loadRoomConversation();
+          }
+        } else {
+          loadRoomConversation();
+        }
+      } catch {
+        loadRoomConversation();
+      }
     </script>
   </body>
 </html>

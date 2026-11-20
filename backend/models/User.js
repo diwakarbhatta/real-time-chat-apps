@@ -55,6 +55,24 @@ class User {
     const stmt = db.prepare('SELECT id, username, email, status, created_at FROM users ORDER BY username ASC');
     return stmt.all();
   }
+
+  static update(id, { username, email, status }) {
+    if (!id) return null;
+    const current = this.findById(id);
+    if (!current) return null;
+
+    const newUsername = username !== undefined ? username : current.username;
+    const newEmail = email !== undefined ? email : current.email;
+    const newStatus = status !== undefined ? status : current.status;
+
+    const stmt = db.prepare(`
+      UPDATE users
+      SET username = ?, email = ?, status = ?
+      WHERE id = ?
+    `);
+    stmt.run(newUsername, newEmail, newStatus, id);
+    return this.findById(id);
+  }
 }
 
 module.exports = User;

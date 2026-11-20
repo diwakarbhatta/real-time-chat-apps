@@ -37,7 +37,7 @@
         <p style="font-size:1.05rem; color:var(--text-500); line-height:1.65; margin:0 0 28px; max-width:420px;">
           Pulse Chat brings your team into one real-time workspace — rooms, direct messages, live presence, and beautiful design.
         </p>
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div id="hero-cta" style="display:flex; gap:12px; flex-wrap:wrap;">
           <a class="btn btn--primary" href="/register.html" style="font-size:1rem; padding:0 28px;">Create free account</a>
           <a class="btn btn--secondary" href="/login.html">Log in</a>
         </div>
@@ -80,7 +80,7 @@
       <div class="card" style="padding:24px;text-align:center;background:linear-gradient(135deg,#FFF0F8,#FFF5F0);">
         <div style="font-size:2rem;margin-bottom:8px;">🔒</div>
         <div style="font-size:1.6rem;font-weight:800;color:#9B7FE8;">Private DMs</div>
-        <div style="font-size:0.85rem;color:var(--text-500);margin-top:4px;">End-to-end secure</div>
+        <div style="font-size:0.85rem;color:var(--text-500);margin-top:4px;">Private 1-to-1 messaging</div>
       </div>
       <!-- Instant -->
       <div class="card" style="padding:24px;text-align:center;background:linear-gradient(135deg,#FFFBEE,#FFFAEE);">
@@ -119,15 +119,27 @@
     </div>
   </main>
 
+  <footer style="text-align:center; padding:24px 16px 48px; color:var(--text-500); font-size:0.875rem;">
+    Pulse Chat &bull; Modern real-time communication workspace
+  </footer>
+
   <script src="/js/auth.js"></script>
   <script>
     const session = getSession();
     if (session && (session.username || session.name)) {
+      const userDisplayName = session.displayName || session.username || session.name;
       const nav = document.getElementById('nav-links');
       if (nav) {
         nav.innerHTML = `
           <a class="btn btn--ghost" href="/settings.html">Settings</a>
-          <a class="btn btn--primary" href="/chat.html">Open Chat →</a>
+          <a class="btn btn--primary" href="/chat.html">Open Chat &rarr;</a>
+        `;
+      }
+      const heroCta = document.getElementById('hero-cta');
+      if (heroCta) {
+        heroCta.innerHTML = `
+          <a class="btn btn--primary" href="/chat.html" style="font-size:1rem; padding:0 28px;">Open Chat (${userDisplayName}) &rarr;</a>
+          <a class="btn btn--secondary" href="/settings.html">Settings</a>
         `;
       }
     }

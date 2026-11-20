@@ -1,6 +1,14 @@
 const path = require('path');
 const fs = require('fs');
-const { DatabaseSync } = require('node:sqlite');
+let DatabaseSync;
+try {
+  ({ DatabaseSync } = require('node:sqlite'));
+} catch (err) {
+  console.error('\n❌ Node.js >= 22.13.0 is required for built-in node:sqlite storage.');
+  console.error(`Current Node version: ${process.version}`);
+  console.error('Please upgrade Node.js to >= 22.13.0: https://nodejs.org/\n');
+  throw new Error(`Node.js >= 22.13.0 required for node:sqlite (current: ${process.version})`);
+}
 
 const dataDir = path.join(__dirname, '../data');
 if (!fs.existsSync(dataDir)) {
