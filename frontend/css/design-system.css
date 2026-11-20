@@ -1299,3 +1299,291 @@ button, input, select, textarea {
   justify-content: center;
   margin-left: auto;
 }
+
+/* ═══════════════════════════════════════════
+   REACTIONS
+═══════════════════════════════════════════ */
+.reactions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(107, 127, 212, 0.08);
+  border: 1.5px solid rgba(107, 127, 212, 0.18);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  line-height: 1;
+  color: var(--text-700);
+}
+.reaction-btn:hover {
+  background: rgba(107, 127, 212, 0.16);
+  border-color: var(--slate-blue);
+  transform: scale(1.08);
+}
+.reaction-btn.reacted {
+  background: rgba(107, 127, 212, 0.18);
+  border-color: var(--slate-blue);
+  color: var(--slate-blue);
+  font-weight: 600;
+}
+.reaction-btn .r-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Emoji picker popup */
+.emoji-picker-popup {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(107, 127, 212, 0.22), 0 2px 8px rgba(0,0,0,0.08);
+  padding: 8px 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: 220px;
+  z-index: 100;
+}
+.emoji-picker-popup button {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 4px;
+  transition: background 0.12s, transform 0.1s;
+  line-height: 1;
+}
+.emoji-picker-popup button:hover {
+  background: rgba(107, 127, 212, 0.12);
+  transform: scale(1.15);
+}
+[data-theme="dark"] .emoji-picker-popup {
+  background: var(--bg-card);
+}
+
+/* ═══════════════════════════════════════════
+   REPLY QUOTE PREVIEW
+═══════════════════════════════════════════ */
+.reply-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(107, 127, 212, 0.07);
+  border-left: 3px solid var(--slate-blue);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+  color: var(--text-500);
+  position: relative;
+  max-width: 100%;
+}
+.reply-preview strong {
+  color: var(--slate-blue);
+  font-weight: 700;
+  margin-right: 4px;
+}
+.reply-preview .reply-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+.reply-preview .cancel-reply {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--text-500);
+  margin-left: auto;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.reply-preview .cancel-reply:hover { color: var(--text-900); }
+
+/* Reply quote inside bubble */
+.bubble-reply-quote {
+  border-left: 3px solid var(--slate-blue);
+  background: rgba(107, 127, 212, 0.07);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 5px 10px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+.bubble-reply-quote .rq-name {
+  font-weight: 700;
+  color: var(--slate-blue);
+  margin-right: 4px;
+}
+.bubble-reply-quote .rq-text {
+  color: var(--text-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.bubble--mine .bubble-reply-quote {
+  border-left-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.12);
+}
+.bubble--mine .bubble-reply-quote .rq-name { color: rgba(255,255,255,0.9); }
+.bubble--mine .bubble-reply-quote .rq-text { color: rgba(255,255,255,0.7); }
+
+/* ═══════════════════════════════════════════
+   READ RECEIPTS & SEEN INDICATOR
+═══════════════════════════════════════════ */
+.read-receipt {
+  font-size: 0.65rem;
+  color: var(--text-300);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  justify-content: flex-end;
+}
+.read-receipt.seen {
+  color: var(--mint, #7EE8A2);
+}
+.read-receipt svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   EDIT & DELETE — Bubble Action Menu
+═══════════════════════════════════════════ */
+.bubble-wrap {
+  position: relative;
+}
+.bubble-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: none;
+  gap: 2px;
+  background: white;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 10px rgba(107, 127, 212, 0.18);
+  padding: 3px 5px;
+  z-index: 10;
+}
+.bubble-wrap:hover .bubble-actions,
+.bubble-wrap:focus-within .bubble-actions {
+  display: flex;
+}
+.bubble-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-500);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.12s, color 0.12s;
+  line-height: 1;
+}
+.bubble-action-btn:hover {
+  background: rgba(107, 127, 212, 0.1);
+  color: var(--slate-blue);
+}
+.bubble-action-btn.del:hover {
+  background: rgba(255, 107, 138, 0.1);
+  color: #FF6B8A;
+}
+[data-theme="dark"] .bubble-actions {
+  background: var(--bg-card);
+}
+
+/* Edited tag inside bubble */
+.edited-tag {
+  font-size: 0.65rem;
+  color: var(--text-300);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+/* Deleted bubble style */
+.bubble.deleted .bubble-content {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+/* Inline edit form inside bubble */
+.edit-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+.edit-input {
+  flex: 1;
+  border: 1.5px solid rgba(107, 127, 212, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.9rem;
+  outline: none;
+  background: white;
+  color: var(--text-900);
+}
+.edit-input:focus { border-color: var(--slate-blue); }
+.edit-save-btn {
+  background: var(--slate-blue);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.edit-cancel-btn {
+  background: rgba(107,127,212,0.1);
+  color: var(--slate-blue);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+/* ═══════════════════════════════════════════
+   ONLINE / OFFLINE STATUS
+═══════════════════════════════════════════ */
+.presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.presence-dot.online  { background: #22c55e; }
+.presence-dot.away    { background: #f59e0b; }
+.presence-dot.busy    { background: #ef4444; }
+.presence-dot.offline { background: #94a3b8; }
+
+.dm-status.offline { color: var(--text-500); }
+.dm-status.offline::before { background: #94a3b8; }
+
+.last-seen-text {
+  font-size: 0.68rem;
+  color: var(--text-500);
+  margin-top: 1px;
+  display: block;
+}

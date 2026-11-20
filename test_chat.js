@@ -396,7 +396,139 @@ async function runTests() {
     }
     console.log('✓ DM correctly hidden from the general room history');
 
+    // ─── [6] Testing Message Reactions, Replies, Edit, Delete, Read Receipts & Presence ───
+    console.log('\n[6] Testing Reactions, Replies, Edit/Delete, Read Receipts & Presence...');
+
+    // 1. Reply to a message
+    let replyReceivedMsg;
+    const replyPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Reply broadcast timed out')), 5000);
+      dmSocket.on('chat-message', (msg) => {
+        if (msg.text === 'This is a threaded reply!') {
+          clearTimeout(timeout);
+          resolve(msg);
+        }
+      });
+    });
+
+    let sentReplyId;
+    await new Promise((resolve, reject) => {
+      userASocket.emit('chat-message', { text: 'This is a threaded reply!', replyToId: deliveredMsg.id }, (ack) => {
+        if (!ack || !ack.success) return reject(new Error(`Reply send failed: ${JSON.stringify(ack)}`));
+        sentReplyId = ack.id;
+        resolve();
+      });
+    });
+    replyReceivedMsg = await replyPromise;
+    if (!replyReceivedMsg.replyTo || replyReceivedMsg.replyTo.id !== deliveredMsg.id) {
+      throw new Error(`Reply quote missing or mismatch: ${JSON.stringify(replyReceivedMsg)}`);
+    }
+    console.log('✓ Threaded reply successfully sent and broadcast with quoted preview');
+
+    // 2. Emoji Reaction
+    const reactPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Reaction broadcast timed out')), 5000);
+      dmSocket.on('reaction-updated', (data) => {
+        if (data.id === sentReplyId && data.reactions['❤️'] && data.reactions['❤️'].count >= 1) {
+          clearTimeout(timeout);
+          resolve(data);
+        }
+      });
+    });
+
+    await new Promise((resolve, reject) => {
+      userASocket.emit('react', { id: sentReplyId, emoji: '❤️' }, (ack) => {
+        if (!ack || !ack.success) return reject(new Error(`Reaction failed: ${JSON.stringify(ack)}`));
+        resolve();
+      });
+    });
+    await reactPromise;
+    console.log('✓ Emoji reaction toggled and broadcast with live counts');
+
+    // 3. Edit Message
+    const editPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Edit broadcast timed out')), 5000);
+      dmSocket.on('message-edited', (data) => {
+        if (data.id === sentReplyId && data.text === 'This is an edited threaded reply!') {
+          clearTimeout(timeout);
+          resolve(data);
+        }
+      });
+    });
+
+    await new Promise((resolve, reject) => {
+      userASocket.emit('edit-message', { id: sentReplyId, text: 'This is an edited threaded reply!' }, (ack) => {
+        if (!ack || !ack.success) return reject(new Error(`Edit failed: ${JSON.stringify(ack)}`));
+        resolve();
+      });
+    });
+    await editPromise;
+    console.log('✓ Message edited by owner and broadcast successfully');
+
+    // Unauthorized edit rejection
+    await new Promise((resolve, reject) => {
+      dmSocket.emit('edit-message', { id: sentReplyId, text: 'Hacked message' }, (ack) => {
+        if (ack && !ack.success) {
+          resolve();
+        } else {
+          reject(new Error('Unauthorized edit was erroneously accepted!'));
+        }
+      });
+    });
+    console.log('✓ Unauthorized message edit correctly rejected');
+
+    // 4. Read Receipts
+    const readReceiptPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Read receipt broadcast timed out')), 5000);
+      userASocket.on('read-receipt', (data) => {
+        if (data.ids.includes(deliveredMsg.id)) {
+          clearTimeout(timeout);
+          resolve(data);
+        }
+      });
+    });
+
+    dmSocket.emit('mark-read', { ids: [deliveredMsg.id] });
+    await readReceiptPromise;
+    console.log('✓ Read receipt marked and received');
+
+    // 5. Delete Message
+    const deletePromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Delete broadcast timed out')), 5000);
+      dmSocket.on('message-deleted', (data) => {
+        if (data.id === sentReplyId && data.deleted === 1) {
+          clearTimeout(timeout);
+          resolve(data);
+        }
+      });
+    });
+
+    await new Promise((resolve, reject) => {
+      userASocket.emit('delete-message', { id: sentReplyId }, (ack) => {
+        if (!ack || !ack.success) return reject(new Error(`Delete failed: ${JSON.stringify(ack)}`));
+        resolve();
+      });
+    });
+    await deletePromise;
+    console.log('✓ Message deleted by owner and soft-delete broadcast successfully');
+
+    // 6. Presence & Disconnect (Offline status & last_seen)
+    const offlinePromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('User offline broadcast timed out')), 5000);
+      userASocket.on('user-offline', (data) => {
+        if (data.userId === dmUser.userId) {
+          clearTimeout(timeout);
+          resolve(data);
+        }
+      });
+    });
+
     dmSocket.disconnect();
+    const offlineData = await offlinePromise;
+    if (!offlineData.lastSeen) {
+      throw new Error(`lastSeen timestamp missing in offline broadcast: ${JSON.stringify(offlineData)}`);
+    }
+    console.log('✓ User disconnect broadcast real-time offline status and last_seen timestamp');
 
     console.log('\n========================================');
     console.log(' ALL TESTS PASSED SUCCESSFULLY! (100%) ');

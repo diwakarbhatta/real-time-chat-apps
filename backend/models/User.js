@@ -41,7 +41,7 @@ class User {
 
   static findById(id) {
     if (!id) return null;
-    const stmt = db.prepare('SELECT id, username, email, status, created_at FROM users WHERE id = ?');
+    const stmt = db.prepare('SELECT id, username, email, status, last_seen, created_at FROM users WHERE id = ?');
     return stmt.get(id) || null;
   }
 
@@ -52,8 +52,15 @@ class User {
   }
 
   static getAll() {
-    const stmt = db.prepare('SELECT id, username, email, status, created_at FROM users ORDER BY username ASC');
+    const stmt = db.prepare('SELECT id, username, email, status, last_seen, created_at FROM users ORDER BY username ASC');
     return stmt.all();
+  }
+
+  static updateLastSeen(id) {
+    if (!id) return;
+    try {
+      db.prepare(`UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?`).run(id);
+    } catch {}
   }
 
   static update(id, { username, email, status }) {

@@ -29,6 +29,7 @@ db.exec(`
     email TEXT UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL,
     status TEXT DEFAULT 'Online',
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -38,17 +39,47 @@ db.exec(`
     username TEXT NOT NULL,
     text TEXT NOT NULL,
     recipient_id INTEGER,
+    reply_to_id INTEGER,
+    edited_at DATETIME,
+    deleted INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(reply_to_id) REFERENCES messages(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    emoji TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(message_id, user_id, emoji),
+    FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS read_receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(message_id, user_id),
+    FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
 
-// Migration for databases created before direct messages existed
-try {
-  db.exec(`ALTER TABLE messages ADD COLUMN recipient_id INTEGER`);
-} catch (err) {
-  // Column already exists — nothing to do
+// Incremental migrations — safe to re-run (each catches "already exists")
+const migrations = [
+  `ALTER TABLE messages ADD COLUMN recipient_id INTEGER`,
+  `ALTER TABLE messages ADD COLUMN reply_to_id INTEGER`,
+  `ALTER TABLE messages ADD COLUMN edited_at DATETIME`,
+  `ALTER TABLE messages ADD COLUMN deleted INTEGER DEFAULT 0`,
+  `ALTER TABLE users ADD COLUMN last_seen DATETIME`,
+];
+for (const sql of migrations) {
+  try { db.exec(sql); } catch { /* column already exists */ }
 }
 
 module.exports = db;
